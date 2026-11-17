@@ -494,11 +494,19 @@ const gannPlugin={id:'gann',afterDatasetsDraw(chart){
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
 function openDetail(sym){
+  if(!cur) history.pushState({layer:'detail'},'');
   cur=sym; $('home').classList.add('hidden'); $('detail').classList.remove('hidden'); window.scrollTo(0,0);
   loadHistory(sym).then(renderDetail).catch(()=>{});
   renderDetail();
 }
-$('backBtn').onclick=()=>{ cur=null; $('detail').classList.add('hidden'); $('home').classList.remove('hidden'); renderGrid(); };
+function closeDetail(){ cur=null; $('detail').classList.add('hidden'); $('home').classList.remove('hidden'); renderGrid(); }
+$('backBtn').onclick=()=>history.back();
+/* phone back button: close the top layer instead of leaving the app */
+window.addEventListener('popstate',()=>{
+  if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
+  if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); return; }
+  if(cur){ closeDetail(); return; }
+});
 $('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
   if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
   if(r==='max'){ const sym=cur; setStatus('טוען היסטוריה מלאה…'); loadFull(sym).then(()=>{ if(cur===sym){ renderDetail(); const v=S.full[sym].values; if(v.length) setStatus('היסטוריה מלאה מתאריך '+v[0][0].split('-').reverse().join('/')+(S.full[sym].note?' · '+S.full[sym].note:'')); } }).catch(err=>setStatus('לא הצלחתי לטעון היסטוריה מלאה: '+err.message)); } };
@@ -598,24 +606,24 @@ let pending=null, selColor=COLORS[0];
 function openNoteModal(ts,price,label){
   pending={ts,price,label}; $('nmInfo').textContent=label+' · מחיר '+fmt(price); $('nmText').value='';
   $('nmColors').innerHTML=''; COLORS.forEach(c=>{ const sp=document.createElement('span'); sp.style.background=c; if(c===selColor) sp.className='sel'; sp.onclick=()=>{selColor=c;[...$('nmColors').children].forEach(x=>x.className='');sp.className='sel';}; $('nmColors').appendChild(sp); });
-  $('noteModal').classList.remove('hidden'); setTimeout(()=>$('nmText').focus(),50);
+  history.pushState({layer:'modal'},''); $('noteModal').classList.remove('hidden'); setTimeout(()=>$('nmText').focus(),50);
 }
 $('addNoteNow').onclick=()=>{ const q=S.quotes[cur]; if(!q||!q.price) return setStatus('אין עדיין מחיר נוכחי'); openNoteModal(Date.now(),q.price,new Date().toLocaleString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})); };
-$('nmCancel').onclick=()=>$('noteModal').classList.add('hidden');
-$('nmSave').onclick=()=>{ const t=$('nmText').value.trim(); if(!t) return; (S.notes[cur]=S.notes[cur]||[]).push({id:Date.now()+''+Math.random().toString(36).slice(2,6),ts:pending.ts,price:pending.price,label:pending.label,text:t,color:selColor}); save(); $('noteModal').classList.add('hidden'); renderDetail(); };
+$('nmCancel').onclick=()=>history.back();
+$('nmSave').onclick=()=>{ const t=$('nmText').value.trim(); if(!t) return; (S.notes[cur]=S.notes[cur]||[]).push({id:Date.now()+''+Math.random().toString(36).slice(2,6),ts:pending.ts,price:pending.price,label:pending.label,text:t,color:selColor}); save(); history.back(); renderDetail(); };
 
 /* ---------- settings ---------- */
 function showSettings(){
-  $('settings').classList.remove('hidden'); $('keyEdit').value=S.apiKey; $('intervalSel').value=S.interval;
+  history.pushState({layer:'settings'},''); $('settings').classList.remove('hidden'); $('keyEdit').value=S.apiKey; $('intervalSel').value=S.interval;
   $('symEdit').innerHTML=''; S.symbols.forEach((s,i)=>{ const r=document.createElement('div'); r.className='sym-row'; r.innerHTML=`<input value="${esc(s.name)}" data-i="${i}" data-f="name"><input value="${esc(s.sym)}" data-i="${i}" data-f="sym" style="direction:ltr">`; $('symEdit').appendChild(r); });
 }
-$('settingsBtn').onclick=()=>$('settings').classList.contains('hidden')?showSettings():$('settings').classList.add('hidden');
-$('closeSettings').onclick=()=>$('settings').classList.add('hidden');
+$('settingsBtn').onclick=()=>$('settings').classList.contains('hidden')?showSettings():history.back();
+$('closeSettings').onclick=()=>history.back();
 $('saveSettings').onclick=()=>{
   S.apiKey=$('keyEdit').value.trim(); S.interval=parseInt($('intervalSel').value);
   const ns=S.symbols.map(s=>({...s}));
   $('symEdit').querySelectorAll('input').forEach(inp=>{ ns[inp.dataset.i][inp.dataset.f]=inp.value.trim(); });
-  S.symbols=ns.filter(s=>s.sym); save(); $('settings').classList.add('hidden'); startTimer(); renderGrid(); loadAllHistory(); refreshQuotes();
+  S.symbols=ns.filter(s=>s.sym); save(); history.back(); startTimer(); renderGrid(); loadAllHistory(); refreshQuotes();
 };
 $('exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify({...S,apiKey:''})],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='stock-tracker-backup-'+today()+'.json'; a.click(); };
 $('importBtnFake').onclick=()=>$('importFile').click();
