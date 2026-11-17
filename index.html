@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#1a1240">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="המניות שלי">
+<title>מעקב עשר המניות שלי</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0f1420;--card:#171e2e;--card2:#1e2740;--line:#2a3550;--txt:#e8ecf4;--mut:#8b96ad;--up:#22c55e;--down:#ef4444;--acc:#60a5fa;--note:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Heebo,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;gap:10px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+.status{font-size:13px;color:var(--mut)}
+button{font-family:inherit;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
+button:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);color:#0b1220;border-color:var(--acc);font-weight:600}
+button.on{background:var(--acc);color:#0b1220}
+input,textarea,select{font-family:inherit;background:#0b1020;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:14px}
+main{padding:18px 20px;max-width:1300px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;transition:.15s}
+.card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.card .top{display:flex;justify-content:space-between;align-items:baseline}
+.card .nm{font-weight:700;font-size:16px}
+.tk{font-size:12px;color:var(--mut);direction:ltr;unicode-bidi:isolate}
+.px{font-size:24px;font-weight:700;margin:6px 0 2px;direction:ltr;text-align:right}
+.chg{font-size:14px;direction:ltr;text-align:right}
+.up{color:var(--up)}.down{color:var(--down)}
+.card canvas{width:100%;height:44px;margin-top:8px}
+.meta{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:6px}
+.hours{font-size:13px;color:var(--txt);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:6px}
+.hours .st{font-size:12px;font-weight:700}
+.badge{background:var(--note);color:#111;border-radius:10px;padding:0 7px;font-weight:700}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hidden{display:none!important}
+.dhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--mut)}
+.stats b{color:var(--txt);direction:ltr;unicode-bidi:isolate}
+.chartwrap{position:relative;height:380px}
+.note{display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line)}
+.note .dot{width:12px;height:12px;border-radius:50%;margin-top:5px;flex:none}
+.note .tx{flex:1}
+.note .when{font-size:12px;color:var(--mut)}
+.hint{font-size:13px;color:var(--mut)}
+.sym-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.err{color:var(--down);font-size:13px}
+a{color:var(--acc)}
+.modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:20}
+.modal .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;width:min(440px,92vw)}
+.colors span{display:inline-block;width:22px;height:22px;border-radius:50%;margin-left:6px;cursor:pointer;border:2px solid transparent}
+.colors span.sel{border-color:#fff}
+
+body{background:radial-gradient(1200px 600px at 100% -10%,#3b1d6e55,transparent),radial-gradient(900px 500px at -10% 110%,#0e5a6a55,transparent),var(--bg);min-height:100vh}
+header{background:linear-gradient(90deg,#1a1240ee,#0f1420ee 60%);backdrop-filter:blur(6px)}
+h1{background:linear-gradient(90deg,#f59e0b,#ec4899,#60a5fa);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:24px}
+.card{position:relative;overflow:hidden;border-top:4px solid var(--c);background:linear-gradient(160deg,color-mix(in srgb,var(--c) 22%,var(--card)) 0%,var(--card) 55%)}
+.card:hover{box-shadow:0 8px 28px color-mix(in srgb,var(--c) 40%,transparent);border-color:var(--c)}
+.card .ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:color-mix(in srgb,var(--c) 30%,transparent);border:1px solid color-mix(in srgb,var(--c) 60%,transparent);flex:none}
+.card .ttl{display:flex;align-items:center;gap:10px}
+.card .nm{color:color-mix(in srgb,var(--c) 45%,#fff)}
+.flash-up{animation:fu 1.2s}.flash-down{animation:fd 1.2s}
+@keyframes fu{0%{background:#22c55e55}100%{background:transparent}}
+@keyframes fd{0%{background:#ef444455}100%{background:transparent}}
+.px{border-radius:6px;transition:.3s}
+.chg.up::before{content:'▲ '}.chg.down::before{content:'▼ '}
+#detail .panel:first-child{border-top:4px solid var(--c,#60a5fa);background:linear-gradient(170deg,color-mix(in srgb,var(--c,#60a5fa) 18%,var(--card)) 0%,var(--card) 40%)}
+#ranges button.on{background:var(--c,#60a5fa);border-color:var(--c,#60a5fa)}
+button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#fff}
+.dic{font-size:26px}
+
+.gann-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.gann-bar label{display:flex;align-items:center;gap:5px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px}
+.gann-bar input[type=checkbox]{accent-color:var(--c,#60a5fa)}
+.gtable{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:10px}
+.gbox{background:#0b1020;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.gbox h4{margin:0 0 8px;font-size:15px}
+.gbox .r{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dashed #2a355066}
+.gbox .r b{direction:ltr;unicode-bidi:isolate;font-weight:500}
+.gbox .r.key{color:#fbbf24;font-weight:700}
+.gbox .r.future{color:#a5f3fc}
+.picking{outline:2px dashed #fbbf24;outline-offset:4px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>מעקב עשר המניות שלי</h1>
+  <div class="status" id="status">טוען…</div>
+  <div class="row">
+    <button id="refreshBtn">רענן עכשיו</button>
+    <button id="settingsBtn">הגדרות</button>
+  </div>
+</header>
+<main>
+  <section id="setup" class="panel hidden">
+    <h2 style="margin-top:0">חיבור לנתוני שוק</h2>
+    <p>כדי לקבל מחירים צריך מפתח גישה חינמי מאתר טוולב דאטה. נרשמים כאן, ואחרי ההרשמה המפתח מופיע בלוח הבקרה שלהם:</p>
+    <p><a href="https://twelvedata.com/register" target="_blank" rel="noopener">twelvedata.com/register</a></p>
+    <div class="row"><input id="keyInput" placeholder="הדבק כאן את המפתח" style="flex:1;direction:ltr;min-width:240px"><button class="pri" id="saveKey">שמור והתחל</button></div>
+    <div id="setupErr" class="err"></div>
+  </section>
+
+  <section id="settings" class="panel hidden">
+    <h2 style="margin-top:0">הגדרות</h2>
+    <div class="row" style="margin-bottom:12px">
+      <label>מפתח גישה: <input id="keyEdit" style="direction:ltr;width:280px"></label>
+      <label>רענון כל <select id="intervalSel"><option value="2">שתי דקות</option><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option></select></label>
+    </div>
+    <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. רענון כל חמש דקות מספיק לבערך שש שעות ביום; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
+    <h3>המניות (שם ותווית מסחר)</h3>
+    <div id="symEdit"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="pri" id="saveSettings">שמור</button>
+      <button id="exportBtn">גיבוי לקובץ</button>
+      <label class="row" style="gap:6px"><button id="importBtnFake">שחזור מקובץ</button><input type="file" id="importFile" accept=".json" class="hidden"></label>
+      <button id="closeSettings">סגור</button>
+    </div>
+    <p class="hint">הנתונים שהאפליקציה אוספת וההערות שלך נשמרים בדפדפן הזה בלבד. כדאי לגבות מדי פעם.</p>
+  </section>
+
+  <section id="home">
+    <div class="grid" id="grid"></div>
+    <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
+  </section>
+
+  <section id="detail" class="hidden">
+    <div class="panel">
+      <div class="dhead">
+        <div class="row"><button id="backBtn">→ חזרה</button><h2 style="margin:0" id="dName"></h2><span class="tk" id="dTk"></span></div>
+        <div style="text-align:left"><div class="px" id="dPx"></div><div class="chg" id="dChg"></div></div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <div class="row" id="ranges">
+          <button data-r="ticks">היום</button>
+          <button data-r="30">חודש</button>
+          <button data-r="90">שלושה חודשים</button>
+          <button data-r="180">חצי שנה</button>
+          <button data-r="365">שנה</button>
+          <button data-r="all">ארבע שנים</button>
+          <button data-r="max">מאז ההקמה</button>
+        </div>
+        <button class="pri" id="addNoteNow">+ סימון במחיר הנוכחי</button>
+      </div>
+      <div id="dHours" style="margin-bottom:10px"></div>
+      <div class="stats" id="dStats"></div>
+      <div class="chartwrap"><canvas id="chart"></canvas></div>
+      <p class="hint">לחיצה על נקודה בגרף מוסיפה סימון בתאריך ובמחיר של אותה נקודה. סימונים מופיעים בגרף כעיגולים צבעוניים.</p>
+    </div>
+    <div class="panel" id="gannPanel">
+      <h3 style="margin-top:0">כלי גאן</h3>
+      <div class="gann-bar">
+        <label><input type="checkbox" data-g="eighths"> שמיניות ושלישים</label>
+        <label><input type="checkbox" data-g="son"> ריבוע התשע</label>
+        <label><input type="checkbox" data-g="angles"> זוויות גאן</label>
+        <label><input type="checkbox" data-g="cycles"> מחזורי זמן</label>
+      </div>
+      <div class="gann-bar">
+        <span>נקודת ציר:</span>
+        <select id="gPivotType"><option value="low">השפל של הטווח</option><option value="high">השיא של הטווח</option><option value="pick">נקודה שאבחר בגרף</option></select>
+        <button id="gPick">בחירת נקודה בגרף</button>
+        <span>יחידת מחיר לכל נקודה בגרף (לזוויות):</span>
+        <input id="gScale" style="width:110px;direction:ltr" placeholder="אוטומטי">
+      </div>
+      <div class="hint" id="gInfo"></div>
+      <div class="gtable" id="gTables"></div>
+      <p class="hint">שמיניות: חלוקת הטווח בין השפל לשיא לשמונה חלקים ולשלישים; החצי הוא הרמה החשובה ביותר אצל גאן. ריבוע התשע: לוקחים שורש של מחיר הציר, מוסיפים או מחסירים את מספר המעלות חלקי מאה ושמונים, ומעלים בריבוע. זוויות: הקו אחד על אחד עולה יחידת מחיר אחת בכל יום מסחר, והשאר הם יחסים שלו; התוצאה תלויה ביחידה שנבחרה. מחזורי זמן: ימים קלנדריים מנקודת הציר לפי חלוקת המעגל, וגם תאריכים עתידיים.</p>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">סימונים והערות</h3>
+      <div id="notes"></div>
+    </div>
+  </section>
+</main>
+
+<div id="noteModal" class="modal hidden">
+  <div class="box">
+    <h3 style="margin-top:0">סימון חדש</h3>
+    <div class="hint" id="nmInfo"></div>
+    <textarea id="nmText" rows="4" style="width:100%;margin:10px 0" placeholder="מה רצית לסמן? למשל: נקודת כניסה, ידיעה חדשותית, יעד מכירה"></textarea>
+    <div class="colors" id="nmColors"></div>
+    <div class="row" style="margin-top:14px"><button class="pri" id="nmSave">שמור</button><button id="nmCancel">ביטול</button></div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_SYMS = [
+  {sym:'SPY', name:'אס אנד פי 500'},
+  {sym:'GOOGL', name:'גוגל'},
+  {sym:'MSFT', name:'מיקרוסופט'},
+  {sym:'NVDA', name:'אנבידיה'},
+  {sym:'GLD', name:'זהב'},
+  {sym:'USO', name:'נפט'},
+  {sym:'BTC/USD', name:'ביטקוין'},
+  {sym:'QQQ', name:'נאסדק'},
+  {sym:'EIS', name:'בורסת תל אביב'},
+  {sym:'ESLT', name:'אלביט'},
+  {sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}
+];
+const LOOK = {
+  'SPY':{c:'#3b82f6',i:'🏛️'}, 'GOOGL':{c:'#22c55e',i:'🔎'}, 'MSFT':{c:'#06b6d4',i:'💻'}, 'NVDA':{c:'#84cc16',i:'🧠'},
+  'GLD':{c:'#eab308',i:'🥇'}, 'USO':{c:'#a16207',i:'🛢️'}, 'BTC/USD':{c:'#f97316',i:'₿'}, 'QQQ':{c:'#8b5cf6',i:'📊'},
+  'EIS':{c:'#0ea5e9',i:'✡️'}, 'ESLT':{c:'#ec4899',i:'🛩️'}, 'MSTR':{c:'#ef4444',i:'🪙'}
+};
+const PAL=['#3b82f6','#22c55e','#06b6d4','#84cc16','#eab308','#f97316','#8b5cf6','#0ea5e9','#ec4899','#ef4444'];
+function look(sym,i){ return LOOK[sym] || {c:PAL[i%PAL.length], i:'📈'}; }
+let lastPx={};
+const COLORS = ['#f59e0b','#ef4444','#22c55e','#60a5fa','#a855f7','#ec4899'];
+const API = 'https://api.twelvedata.com';
+const LS_KEY = 'stocktracker_v1';
+const MAX_TICKS = 4000;
+
+let S = load();
+function load(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+  d = d || {};
+  d.apiKey = d.apiKey || '';
+  d.interval = d.interval || 5;
+  d.symbols = d.symbols || DEFAULT_SYMS;
+  if(!d.addedMSTR){ if(!d.symbols.find(x=>x.sym==='MSTR')) d.symbols=d.symbols.concat([{sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}]); d.addedMSTR=true; }
+  d.hist = d.hist || {}; d.full = d.full || {}; d.intra = d.intra || {}; d.ticks = d.ticks || {}; d.quotes = d.quotes || {}; d.notes = d.notes || {};
+  d.credits = d.credits || {day:'', used:0};
+  return d;
+}
+let saveTimer=null;
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ setStatus('האחסון בדפדפן מלא או חסום — כדאי לגבות ולנקות'); } },200); }
+
+const $ = id => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = (n,d=2) => n==null||isNaN(n) ? '—' : Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = n => n==null||isNaN(n) ? '' : (n>=0?'+':'')+Number(n).toFixed(2)+'%';
+function setStatus(t){ $('status').textContent = t; }
+
+/* ---------- rate-limited queue: free tier = 8 credits per minute ---------- */
+const queue=[]; const sent=[]; let qRunning=false;
+function enqueue(path, cost, urgent){ return new Promise((res,rej)=>{ const j={path,cost,res,rej}; urgent?queue.unshift(j):queue.push(j); runQueue(); }); }
+async function runQueue(){
+  if(qRunning) return; qRunning=true;
+  while(queue.length){
+    const now=Date.now();
+    while(sent.length && now-sent[0].t>61000) sent.shift();
+    const used=sent.reduce((a,b)=>a+b.c,0);
+    const job=queue[0];
+    if(used+job.cost>7){ setStatus('ממתין למכסת הבקשות של הדקה… ('+queue.length+' בתור)'); await new Promise(r=>setTimeout(r,3000)); continue; }
+    queue.shift(); sent.push({t:now,c:job.cost});
+    if(S.credits.day!==today()) S.credits={day:today(),used:0};
+    S.credits.used+=job.cost; save();
+    try{
+      const sep = job.path.includes('?')?'&':'?';
+      const r = await fetch(API+job.path+sep+'apikey='+encodeURIComponent(S.apiKey));
+      const j = await r.json();
+      if(j && j.status==='error') throw new Error(j.message||'שגיאה');
+      job.res(j);
+    }catch(e){ job.rej(e); }
+  }
+  qRunning=false;
+}
+
+/* ---------- data ---------- */
+async function loadHistory(sym){
+  const h=S.hist[sym];
+  if(h && h.v===2 && h.date===today() && h.values && h.values.length) return;
+  const j = await enqueue('/time_series?symbol='+encodeURIComponent(sym)+'&interval=1day&outputsize=1000', 1);
+  const vals=(j.values||[]).map(v=>[v.datetime.slice(0,10), parseFloat(v.close), parseFloat(v.high), parseFloat(v.low)]).reverse();
+  S.hist[sym]={v:2, date:today(), values:vals}; save();
+}
+async function loadIntra(sym){
+  const f=S.intra[sym];
+  if(f && Date.now()-f.t < S.interval*60000) return;
+  const j = await enqueue('/time_series?symbol='+encodeURIComponent(sym)+'&interval=5min&outputsize=300&timezone=Asia/Jerusalem', 1, true);
+  let vals=(j.values||[]).map(v=>[new Date(v.datetime.replace(' ','T')).getTime(), parseFloat(v.close)]).filter(v=>!isNaN(v[0])).reverse();
+  if(!sym.includes('/') && vals.length){
+    const d=new Date(vals[vals.length-1][0]).toDateString();
+    vals=vals.filter(v=>new Date(v[0]).toDateString()===d || vals[vals.length-1][0]-v[0] < 10*3600e3);
+  } else vals=vals.slice(-288);
+  S.intra[sym]={t:Date.now(), values:vals}; save();
+}
+async function loadFull(sym){
+  const f=S.full[sym];
+  if(f && f.v===2 && f.date && (Date.now()-new Date(f.date).getTime())<7*86400e3 && f.values.length) return;
+  let vals=[];
+  try{
+    const j = await enqueue('/time_series?symbol='+encodeURIComponent(sym)+'&interval=1week&outputsize=5000', 1, true);
+    vals=(j.values||[]).map(v=>[v.datetime.slice(0,10), parseFloat(v.close), parseFloat(v.high), parseFloat(v.low)]).reverse();
+  }catch(e){ if(!LONG[sym]) throw e; }
+  let note='';
+  if(LONG[sym]){
+    try{
+      const long=await loadLong(LONG[sym]);
+      if(long.length){
+        const L=long[long.length-1][0];
+        const k=vals.findIndex(v=>v[0]>=L);
+        if(k>=0){
+          const ratio=long[long.length-1][1]/vals[k][1];
+          vals=long.concat(vals.slice(k+1).map(v=>[v[0], +(v[1]*ratio).toFixed(2), +(v[2]*ratio).toFixed(2), +(v[3]*ratio).toFixed(2)]));
+        } else vals=long;
+        note=LONG[sym].note;
+      }
+    }catch(e){ console.warn('long history failed',e); }
+  }
+  S.full[sym]={v:2, date:today(), values:vals, note}; save();
+}
+const LONG={
+  'SPY':{url:'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv', col:'SP500', note:'מדד אס אנד פי עצמו מאז אלף שמונה מאות שבעים ואחת (ממוצעים חודשיים), ובשנים האחרונות לפי הקרן'},
+  'GLD':{url:'https://raw.githubusercontent.com/datasets/gold-prices/main/data/monthly.csv', col:'Price', note:'מחיר אונקיית זהב בדולרים מאז אלף שמונה מאות שלושים ושלוש, ובשנים האחרונות לפי הקרן'}
+};
+async function loadLong(cfg){
+  const t=await (await fetch(cfg.url)).text();
+  const rows=t.trim().split(/\r?\n/); const head=rows[0].split(',');
+  const ci=head.indexOf(cfg.col), di=0;
+  return rows.slice(1).map(r=>r.split(',')).map(c=>{ let d=c[di]; if(d.length===7) d+='-01'; return [d, parseFloat(c[ci])]; }).filter(v=>v[0]&&!isNaN(v[1]));
+}
+async function refreshQuotes(){
+  if(!S.apiKey) return;
+  const syms=S.symbols.map(s=>s.sym);
+  const chunks=[]; for(let i=0;i<syms.length;i+=5) chunks.push(syms.slice(i,i+5));
+  let errs=[];
+  for(const ch of chunks){
+    try{
+      const j = await enqueue('/quote?symbol='+encodeURIComponent(ch.join(',')), ch.length);
+      const map = ch.length===1 ? {[ch[0]]:j} : j;
+      for(const s of ch){
+        const q=map[s]; if(!q || q.status==='error' || q.code){ errs.push(s); continue; }
+        const price=parseFloat(q.close);
+        S.quotes[s]={price, change:parseFloat(q.change), pct:parseFloat(q.percent_change), prev:parseFloat(q.previous_close), open:parseFloat(q.open), high:parseFloat(q.high), low:parseFloat(q.low), wk52:q.fifty_two_week||null, open_mkt:q.is_market_open, t:Date.now()};
+        const arr=S.ticks[s]=S.ticks[s]||[];
+        arr.push([Date.now(), price]); if(arr.length>MAX_TICKS) arr.splice(0,arr.length-MAX_TICKS);
+      }
+      save(); renderGrid(); if(cur) renderDetail();
+      if(cur && range==='ticks') loadIntra(cur).then(()=>{ if(cur&&range==='ticks') renderDetail(); }).catch(()=>{});
+    }catch(e){ errs.push(ch.join(',')+': '+e.message); }
+  }
+  const t=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  setStatus((errs.length?'שגיאה ב: '+errs.join(' | ')+' · ':'')+'עודכן '+t+' · בקשות היום: '+S.credits.used+'/800');
+}
+async function loadAllHistory(){
+  for(const s of S.symbols){
+    try{ await loadHistory(s.sym); renderGrid(); if(cur===s.sym) renderDetail(); }
+    catch(e){ console.warn(s.sym,e); }
+  }
+}
+
+/* ---------- trading hours in Israel time ---------- */
+function tzParts(tz){
+  const f=new Intl.DateTimeFormat('en-US',{timeZone:tz,hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit'});
+  const o={}; f.formatToParts(new Date()).forEach(p=>o[p.type]=p.value);
+  return {wd:o.weekday, mins:(parseInt(o.hour)%24)*60+parseInt(o.minute)};
+}
+function hhmm(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function hoursInfo(sym){
+  if(sym.includes('/')) return {text:'מסחר עשרים וארבע שעות, כל השבוע', open:true};
+  const ny=tzParts('America/New_York'), il=tzParts('Asia/Jerusalem');
+  let diff=il.mins-ny.mins; if(diff<-720) diff+=1440; if(diff>720) diff-=1440;
+  const o=570+diff, c=960+diff;
+  const wk=!['Sat','Sun'].includes(ny.wd);
+  const open=wk && ny.mins>=570 && ny.mins<960;
+  return {text:'מסחר: '+hhmm(o)+'–'+hhmm(c)+' שעון ישראל, שני עד שישי', open};
+}
+function hoursHTML(sym){
+  const h=hoursInfo(sym);
+  return `<div class="hours"><span>${h.text}</span><span class="st ${h.open?'up':'down'}">${h.open?'פתוח':'סגור'}</span></div>`;
+}
+
+/* ---------- home grid ---------- */
+function renderGrid(){
+  const g=$('grid'); g.innerHTML='';
+  S.symbols.forEach((s,idx)=>{
+    const q=S.quotes[s.sym]||{}; const n=(S.notes[s.sym]||[]).length;
+    const L=look(s.sym,idx);
+    const c=document.createElement('div'); c.className='card'; c.style.setProperty('--c',L.c);
+    const cls=q.pct>=0?'up':'down';
+    c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${s.name}</span></span><span class="tk">${s.sym}</span></div>
+      <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
+      <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
+      <canvas></canvas>
+      ${hoursHTML(s.sym)}
+      <div class="meta"><span>${q.t?new Date(q.t).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):''}</span>${n?`<span class="badge">${n}</span>`:''}</div>`;
+    c.onclick=()=>openDetail(s.sym);
+    g.appendChild(c);
+    spark(c.querySelector('canvas'), s.sym);
+  });
+}
+function flash(sym,p){ const o=lastPx[sym]; lastPx[sym]=p; if(o==null||p==null||o===p) return ''; return p>o?'flash-up':'flash-down'; }
+function spark(cv, sym){
+  const h=(S.hist[sym]&&S.hist[sym].values)||[]; let pts=h.slice(-30).map(v=>v[1]);
+  const q=S.quotes[sym]; if(q&&q.price) pts.push(q.price);
+  const W=cv.clientWidth||200, H=44, dpr=window.devicePixelRatio||1; cv.width=W*dpr; cv.height=H*dpr;
+  const x=cv.getContext('2d'); x.scale(dpr,dpr);
+  if(pts.length<2) return;
+  const mn=Math.min(...pts), mx=Math.max(...pts), rg=mx-mn||1;
+  x.strokeStyle = pts[pts.length-1]>=pts[0]?'#22c55e':'#ef4444'; x.lineWidth=1.6; x.beginPath();
+  pts.forEach((p,i)=>{ const X=i/(pts.length-1)*W, Y=H-2-(p-mn)/rg*(H-4); i?x.lineTo(X,Y):x.moveTo(X,Y); });
+  x.stroke();
+}
+
+/* ---------- Gann tools ---------- */
+let G=null, picking=false;
+function gcfg(){ S.gann=S.gann||{}; return S.gann[cur]=S.gann[cur]||{on:{},type:'low',pick:null,scale:''}; }
+const ANGLES=[[1,8],[1,4],[1,3],[1,2],[1,1],[2,1],[3,1],[4,1],[8,1]];
+const CYCLES=[30,45,60,90,120,135,150,180,210,225,240,270,300,315,330,360,450,540,720,1080,1440,1800,2160,2520,3600];
+const SON_DEG=[45,90,135,180,225,270,315,360,720];
+function niceScale(x){ if(!(x>0)) return 1; const e=Math.pow(10,Math.floor(Math.log10(x))); const m=x/e; const n=m<1.5?1:m<3.5?2.5:m<7.5?5:10; return n*e; }
+function pivotIndex(cfg){
+  if(!series.length) return -1;
+  if(cfg.type==='pick' && cfg.pick){ const i=series.findIndex(p=>p.day>=cfg.pick.day && (range!=='ticks'||p.ts>=cfg.pick.ts)); return i; }
+  let best=0;
+  series.forEach((p,i)=>{ if(cfg.type==='high'? p.hi>series[best].hi : p.lo<series[best].lo) best=i; });
+  return best;
+}
+function addDays(day,n){ const d=new Date(day+'T12:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function fmtDay(day){ return day.split('-').reverse().join('/'); }
+function computeGann(){
+  G=null;
+  const cfg=gcfg(), on=cfg.on||{};
+  if(!series.length || !(on.eighths||on.son||on.angles||on.cycles)) return null;
+  const n=series.length;
+  const H=Math.max(...series.map(p=>p.hi)), L=Math.min(...series.map(p=>p.lo));
+  const pi=pivotIndex(cfg); if(pi<0) return null;
+  const pv=series[pi];
+  const isHigh = cfg.type==='high' || (cfg.type==='pick' && cfg.pick && cfg.pick.kind==='high');
+  const p0 = isHigh ? pv.hi : pv.lo;
+  const out={hLines:[],vLines:[],rays:[],pivot:{i:pi,p:p0},tables:[]};
+  if(on.eighths){
+    const rows=[];
+    const lv=[[0,'0/8'],[1/8,'1/8'],[2/8,'2/8'],[1/3,'1/3'],[3/8,'3/8'],[4/8,'4/8'],[5/8,'5/8'],[2/3,'2/3'],[6/8,'6/8'],[7/8,'7/8'],[1,'8/8']];
+    lv.forEach(([f,lab])=>{ const v=L+(H-L)*f; const key=f===0.5; const third=lab.includes('/3');
+      out.hLines.push({v,label:lab,color:key?'#fbbf24':third?'#a78bfa':'#94a3b8',w:key?2:1,dash:third?[2,3]:[6,4]});
+      rows.push({k:lab+' ('+(f*100).toFixed(1)+'%)',v:fmt(v),key}); });
+    out.tables.push({t:'שמיניות ושלישים בין '+fmt(L)+' ל־'+fmt(H),rows:rows.reverse()});
+  }
+  if(on.son){
+    const r=Math.sqrt(p0), rows=[];
+    SON_DEG.slice().reverse().forEach(d=>{ const v=Math.pow(r+d/180,2); rows.push({k:'+'+d+'°',v:fmt(v),key:d%90===0}); out.hLines.push({v,label:'+'+d+'°',color:d%90===0?'#22d3ee':'#0e7490',w:d%90===0?1.5:1,dash:[3,3]}); });
+    rows.push({k:'ציר',v:fmt(p0),key:true});
+    SON_DEG.forEach(d=>{ const x=r-d/180; if(x<=0) return; const v=x*x; rows.push({k:'−'+d+'°',v:fmt(v),key:d%90===0}); out.hLines.push({v,label:'−'+d+'°',color:d%90===0?'#22d3ee':'#0e7490',w:d%90===0?1.5:1,dash:[3,3]}); });
+    out.tables.push({t:'ריבוע התשע מהציר '+fmt(p0),rows});
+  }
+  if(on.angles){
+    let unit=parseFloat(cfg.scale);
+    if(!(unit>0)) unit=niceScale((H-L)/Math.max(1,n-1));
+    out.unit=unit;
+    const dir=isHigh?-1:1, rows=[];
+    ANGLES.forEach(([a,b])=>{ const slope=dir*unit*a/b; const lab=a+'×'+b; out.rays.push({i0:pi,p0,slope,label:lab,color:(a===1&&b===1)?'#f43f5e':'#fb923c',w:(a===1&&b===1)?2:1});
+      const vNow=p0+slope*(n-1-pi); rows.push({k:lab+(a===1&&b===1?' (הקו הראשי)':''),v:vNow>0?fmt(vNow):'—',key:a===1&&b===1}); });
+    out.tables.push({t:'זוויות מהציר, ערך הקו היום (יחידה '+fmt(unit,unit<1?4:2)+')',rows});
+  }
+  if(on.cycles && range!=='ticks'){
+    const rows=[];
+    CYCLES.forEach(c=>{ const d=addDays(pv.day,c); const i=series.findIndex(p=>p.day>=d); const fut=d>today();
+      if(i>pi) out.vLines.push({i,label:c+'',color:c%90===0?'#facc15':'#a3a3a3',w:c%90===0?1.5:1});
+      rows.push({k:c+' ימים',v:fmtDay(d)+(fut?' ◄ עתידי':''),key:c%90===0,future:fut}); });
+    out.tables.push({t:'מחזורי זמן מ־'+fmtDay(pv.day),rows});
+  }
+  G=out; return out;
+}
+function renderGannUI(){
+  const cfg=gcfg();
+  document.querySelectorAll('[data-g]').forEach(cb=>cb.checked=!!(cfg.on||{})[cb.dataset.g]);
+  $('gPivotType').value=cfg.type; $('gScale').value=cfg.scale||'';
+  const g=G;
+  if(!g){ $('gInfo').textContent='סמן כלי אחד או יותר כדי לראות אותו על הגרף.'; $('gTables').innerHTML=''; return; }
+  const pv=series[g.pivot.i];
+  $('gInfo').textContent='ציר: '+pv.label+' במחיר '+fmt(g.pivot.p)+(g.unit?' · יחידת זווית: '+fmt(g.unit,g.unit<1?4:2)+(range==='max'?' לשבוע':range==='ticks'?' לחמש דקות':' ליום מסחר'):'')+(range==='ticks'?' · בטווח היום כל נקודה היא חמש דקות':'');
+  $('gTables').innerHTML=g.tables.map(t=>`<div class="gbox"><h4>${t.t}</h4>${t.rows.map(r=>`<div class="r${r.key?' key':''}${r.future?' future':''}"><span>${r.k.replace(/([+−]?[0-9]+°|[0-9]+×[0-9]+|[0-9]+\/[0-9]+ \([0-9.]+%\))/g,'<bdi dir="ltr">$1</bdi>')}</span><b>${r.v}</b></div>`).join('')}</div>`).join('');
+}
+document.querySelectorAll('[data-g]').forEach(cb=>cb.onchange=()=>{ const c=gcfg(); c.on=c.on||{}; c.on[cb.dataset.g]=cb.checked; save(); renderDetail(); });
+$('gPivotType').onchange=()=>{ const c=gcfg(); c.type=$('gPivotType').value; if(c.type==='pick'&&!c.pick){ startPick(); } save(); renderDetail(); };
+$('gScale').onchange=()=>{ gcfg().scale=$('gScale').value.trim(); save(); renderDetail(); };
+$('gPick').onclick=()=>startPick();
+function startPick(){ picking=true; document.querySelector('.chartwrap').classList.add('picking'); setStatus('לחץ על הגרף על השפל או השיא שישמש כנקודת ציר'); }
+const gannPlugin={id:'gann',afterDatasetsDraw(chart){
+  if(!G) return; const {ctx,chartArea:a,scales:{x,y}}=chart; const n=series.length;
+  ctx.save(); ctx.beginPath(); ctx.rect(a.left,a.top,a.right-a.left,a.bottom-a.top); ctx.clip();
+  ctx.font='11px Heebo,Arial'; try{ctx.direction='ltr';}catch(e){} 
+  G.hLines.forEach(l=>{ if(l.v<y.min||l.v>y.max) return; const Y=y.getPixelForValue(l.v); ctx.strokeStyle=l.color; ctx.lineWidth=l.w; ctx.setLineDash(l.dash||[]); ctx.beginPath(); ctx.moveTo(a.left,Y); ctx.lineTo(a.right,Y); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=l.color; ctx.textAlign='left'; ctx.fillText(l.label,a.left+4,Y-3); });
+  G.vLines.forEach(l=>{ const X=x.getPixelForValue(l.i); ctx.strokeStyle=l.color; ctx.lineWidth=l.w; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(X,a.top); ctx.lineTo(X,a.bottom); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=l.color; ctx.textAlign='center'; ctx.fillText(l.label,X,a.top+12); });
+  G.rays.forEach(r=>{ ctx.strokeStyle=r.color; ctx.lineWidth=r.w; ctx.beginPath(); let last=null;
+    for(let i=r.i0;i<n;i++){ const p=r.p0+r.slope*(i-r.i0); if(p<=0) break; const X=x.getPixelForValue(i), Y=y.getPixelForValue(p); if(i===r.i0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y); last={X,Y}; if(p>y.max*3||p<y.min/3) break; }
+    ctx.stroke(); if(last){ ctx.fillStyle=r.color; ctx.textAlign='right'; ctx.fillText(r.label,Math.max(a.left+20,Math.min(a.right-4,last.X)),Math.max(a.top+10,Math.min(a.bottom-4,last.Y))); } });
+  const pv=G.pivot; const PX=x.getPixelForValue(pv.i), PY=y.getPixelForValue(pv.p);
+  ctx.fillStyle='#fbbf24'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(PX,PY,6,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}};
+
+/* ---------- detail ---------- */
+let cur=null, range='90', chart=null, series=[];
+function openDetail(sym){
+  cur=sym; $('home').classList.add('hidden'); $('detail').classList.remove('hidden'); window.scrollTo(0,0);
+  loadHistory(sym).then(renderDetail).catch(()=>{});
+  renderDetail();
+}
+$('backBtn').onclick=()=>{ cur=null; $('detail').classList.add('hidden'); $('home').classList.remove('hidden'); renderGrid(); };
+$('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
+  if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
+  if(r==='max'){ const sym=cur; setStatus('טוען היסטוריה מלאה…'); loadFull(sym).then(()=>{ if(cur===sym){ renderDetail(); const v=S.full[sym].values; if(v.length) setStatus('היסטוריה מלאה מתאריך '+v[0][0].split('-').reverse().join('/')+(S.full[sym].note?' · '+S.full[sym].note:'')); } }).catch(err=>setStatus('לא הצלחתי לטעון היסטוריה מלאה: '+err.message)); } };
+
+function buildSeries(){
+  if(range==='ticks'){
+    const t=(S.ticks[cur]||[]); let arr;
+    const iv=(S.intra[cur]&&S.intra[cur].values)||[];
+    if(iv.length){ const last=iv[iv.length-1][0]; arr=iv.concat(t.filter(p=>p[0]>last+60000 && p[0]-last<12*3600e3)); }
+    else { const d0=new Date(); d0.setHours(0,0,0,0); arr=t.filter(p=>p[0]>=d0.getTime()); if(arr.length<2) arr=t.slice(-200); }
+    return arr.map(p=>({label:new Date(p[0]).toLocaleString('he-IL',{weekday:'short',hour:'2-digit',minute:'2-digit'}), ts:p[0], day:new Date(p[0]).toISOString().slice(0,10), v:p[1], hi:p[1], lo:p[1]}));
+  }
+  const src = range==='max' ? S.full[cur] : S.hist[cur];
+  let h=((src&&src.values)||[]).slice();
+  const q=S.quotes[cur];
+  if(q&&q.price&&!(range==='max'&&src&&src.note)){ const row=[today(),q.price,isNaN(q.high)?q.price:q.high,isNaN(q.low)?q.price:q.low]; if(h.length&&h[h.length-1][0]===today()) h[h.length-1]=row; else h.push(row); }
+  if(range!=='all' && range!=='max') h=h.slice(-parseInt(range));
+  return h.map(v=>({label:v[0].split('-').reverse().join('/'), ts:new Date(v[0]+'T12:00:00').getTime(), day:v[0], v:v[1], hi:(v[2]==null||isNaN(v[2]))?v[1]:v[2], lo:(v[3]==null||isNaN(v[3]))?v[1]:v[3]}));
+}
+function renderDetail(){
+  if(!cur) return;
+  const s=S.symbols.find(x=>x.sym===cur); const q=S.quotes[cur]||{};
+  const L=look(cur,S.symbols.indexOf(s)); $('detail').style.setProperty('--c',L.c); $('dName').innerHTML='<span class="dic">'+L.i+'</span> '+esc(s.name); $('dTk').textContent=s.sym;
+  $('dPx').textContent=fmt(q.price); $('dHours').innerHTML=hoursHTML(cur);
+  $('dChg').className='chg '+(q.pct>=0?'up':'down');
+  $('dChg').textContent=q.price!=null?((q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')'):'';
+  [...$('ranges').children].forEach(b=>b.classList.toggle('on',b.dataset.r===range));
+  series=buildSeries();
+  const vals=series.map(p=>p.v);
+  if(vals.length){
+    const first=vals[0], last=vals[vals.length-1];
+    const ch=(last-first)/first*100;
+    $('dStats').innerHTML=`<span>שינוי בטווח: <b class="${ch>=0?'up':'down'}">${pct(ch)}</b></span>
+      <span>שיא: <b>${fmt(Math.max(...vals))}</b></span><span>שפל: <b>${fmt(Math.min(...vals))}</b></span>
+      <span>פתיחה היום: <b>${fmt(q.open)}</b></span><span>טווח יומי: <b>${fmt(q.low)} – ${fmt(q.high)}</b></span>
+      <span>נקודות: <b>${vals.length}</b></span>`;
+  } else $('dStats').innerHTML='<span>עדיין אין נתונים לטווח הזה</span>';
+  computeGann(); drawChart(); renderNotes(); renderGannUI();
+}
+function noteIndex(n){
+  if(!series.length) return -1;
+  if(range==='ticks'){
+    let best=-1,bd=Infinity; series.forEach((p,i)=>{const d=Math.abs(p.ts-n.ts); if(d<bd){bd=d;best=i;}});
+    return bd<6*3600e3?best:-1;
+  }
+  const day=new Date(n.ts).toISOString().slice(0,10);
+  let idx=series.findIndex(p=>p.day>=day);
+  if(idx<0) return -1;
+  return idx;
+}
+function drawChart(){
+  if(typeof Chart==='undefined'){ setStatus('ספריית הגרפים לא נטענה — בדוק חיבור לאינטרנט'); return; }
+  const notes=S.notes[cur]||[];
+  const nd=series.map(()=>null), nc=series.map(()=>'#f59e0b');
+  notes.forEach(n=>{ const i=noteIndex(n); if(i>=0){ nd[i]=series[i].v; nc[i]=n.color; } });
+  const up=series.length>1 && series[series.length-1].v>=series[0].v;
+  const cfg={
+    type:'line',
+    data:{labels:series.map(p=>p.label),datasets:[
+      {data:series.map(p=>p.v),borderColor:up?'#22c55e':'#ef4444',backgroundColor:up?'#22c55e22':'#ef444422',fill:true,pointRadius:0,borderWidth:2,tension:.15},
+      {data:nd,showLine:false,pointRadius:8,pointHoverRadius:10,pointBackgroundColor:nc,pointBorderColor:'#fff',pointBorderWidth:2}
+    ]},
+    plugins:[gannPlugin],
+    options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{rtl:true,callbacks:{label:c=>{
+        if(c.datasetIndex===0) return 'מחיר: '+fmt(c.parsed.y);
+        const ns=(S.notes[cur]||[]).filter(n=>noteIndex(n)===c.dataIndex); return ns.map(n=>'📌 '+n.text);
+      }}}},
+      scales:{x:{reverse:true,ticks:{color:'#8b96ad',maxTicksLimit:8},grid:{color:'#2a355033'}},y:{type:range==='max'?'logarithmic':'linear',position:'right',ticks:{color:'#8b96ad'},grid:{color:'#2a355055'}}},
+      onClick:(e)=>{ const el=chart.getElementsAtEventForMode(e,'index',{intersect:false},true); if(!el.length) return; const p=series[el[0].index];
+        if(picking){ picking=false; document.querySelector('.chartwrap').classList.remove('picking'); const c=gcfg(); const yv=chart.scales.y.getValueForPixel(e.y);
+          const kind=Math.abs(yv-p.hi)<Math.abs(yv-p.lo)?'high':'low'; c.type='pick'; c.pick={day:p.day,ts:p.ts,kind}; save(); setStatus('נקודת הציר נקבעה: '+p.label+' ('+(kind==='high'?'שיא':'שפל')+')'); renderDetail(); return; }
+        openNoteModal(p.ts,p.v,p.label); }
+    }
+  };
+  if(chart) chart.destroy();
+  chart=new Chart($('chart'),cfg);
+}
+function renderNotes(){
+  const ns=(S.notes[cur]||[]).slice().sort((a,b)=>b.ts-a.ts);
+  const q=S.quotes[cur];
+  $('notes').innerHTML = ns.length? '' : '<p class="hint">אין עדיין סימונים. אפשר ללחוץ על הגרף או על הכפתור למעלה.</p>';
+  ns.forEach(n=>{
+    const since = q&&q.price ? (q.price-n.price)/n.price*100 : null;
+    const d=document.createElement('div'); d.className='note';
+    d.innerHTML=`<span class="dot" style="background:${n.color}"></span>
+      <div class="tx"><div>${esc(n.text)}</div><div class="when">${n.label} · במחיר ${fmt(n.price)}${since!=null?` · מאז: <span class="${since>=0?'up':'down'}" style="direction:ltr;unicode-bidi:isolate">${pct(since)}</span>`:''}</div></div>
+      <button data-id="${n.id}">מחק</button>`;
+    d.querySelector('button').onclick=()=>{ if(d.dataset.c){ S.notes[cur]=S.notes[cur].filter(x=>x.id!==n.id); save(); renderDetail(); } else { d.dataset.c=1; d.querySelector('button').textContent='בטוח?'; } };
+    $('notes').appendChild(d);
+  });
+}
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- note modal ---------- */
+let pending=null, selColor=COLORS[0];
+function openNoteModal(ts,price,label){
+  pending={ts,price,label}; $('nmInfo').textContent=label+' · מחיר '+fmt(price); $('nmText').value='';
+  $('nmColors').innerHTML=''; COLORS.forEach(c=>{ const sp=document.createElement('span'); sp.style.background=c; if(c===selColor) sp.className='sel'; sp.onclick=()=>{selColor=c;[...$('nmColors').children].forEach(x=>x.className='');sp.className='sel';}; $('nmColors').appendChild(sp); });
+  $('noteModal').classList.remove('hidden'); setTimeout(()=>$('nmText').focus(),50);
+}
+$('addNoteNow').onclick=()=>{ const q=S.quotes[cur]; if(!q||!q.price) return setStatus('אין עדיין מחיר נוכחי'); openNoteModal(Date.now(),q.price,new Date().toLocaleString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})); };
+$('nmCancel').onclick=()=>$('noteModal').classList.add('hidden');
+$('nmSave').onclick=()=>{ const t=$('nmText').value.trim(); if(!t) return; (S.notes[cur]=S.notes[cur]||[]).push({id:Date.now()+''+Math.random().toString(36).slice(2,6),ts:pending.ts,price:pending.price,label:pending.label,text:t,color:selColor}); save(); $('noteModal').classList.add('hidden'); renderDetail(); };
+
+/* ---------- settings ---------- */
+function showSettings(){
+  $('settings').classList.remove('hidden'); $('keyEdit').value=S.apiKey; $('intervalSel').value=S.interval;
+  $('symEdit').innerHTML=''; S.symbols.forEach((s,i)=>{ const r=document.createElement('div'); r.className='sym-row'; r.innerHTML=`<input value="${esc(s.name)}" data-i="${i}" data-f="name"><input value="${esc(s.sym)}" data-i="${i}" data-f="sym" style="direction:ltr">`; $('symEdit').appendChild(r); });
+}
+$('settingsBtn').onclick=()=>$('settings').classList.contains('hidden')?showSettings():$('settings').classList.add('hidden');
+$('closeSettings').onclick=()=>$('settings').classList.add('hidden');
+$('saveSettings').onclick=()=>{
+  S.apiKey=$('keyEdit').value.trim(); S.interval=parseInt($('intervalSel').value);
+  const ns=S.symbols.map(s=>({...s}));
+  $('symEdit').querySelectorAll('input').forEach(inp=>{ ns[inp.dataset.i][inp.dataset.f]=inp.value.trim(); });
+  S.symbols=ns.filter(s=>s.sym); save(); $('settings').classList.add('hidden'); startTimer(); renderGrid(); loadAllHistory(); refreshQuotes();
+};
+$('exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify({...S,apiKey:''})],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='stock-tracker-backup-'+today()+'.json'; a.click(); };
+$('importBtnFake').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); const k=S.apiKey; S={...load(),...d}; S.apiKey=S.apiKey||k; save(); renderGrid(); setStatus('השחזור הצליח'); }catch(err){ setStatus('הקובץ לא תקין'); } };
+
+$('saveKey').onclick=async ()=>{
+  const k=$('keyInput').value.trim(); if(!k) return; S.apiKey=k; save(); $('setupErr').textContent='בודק…';
+  try{ await enqueue('/price?symbol=MSFT',1); $('setup').classList.add('hidden'); $('setupErr').textContent=''; start(); }
+  catch(e){ $('setupErr').textContent='המפתח לא עבד: '+e.message; }
+};
+$('refreshBtn').onclick=()=>refreshQuotes();
+
+/* ---------- loop ---------- */
+let timer=null;
+function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) refreshQuotes(); }, S.interval*60000); }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); } });
+async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
+
+renderGrid();
+if(!S.apiKey){ $('setup').classList.remove('hidden'); setStatus('צריך מפתח גישה כדי להתחיל'); }
+else start();
+</script>
+<script>if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>
