@@ -84,7 +84,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .gtable{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:10px}
 .gbox{background:#0b1020;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .gbox h4{margin:0 0 8px;font-size:15px}
-.gbox .r{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dashed #2a355066}
+.gbox .r{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0;border-bottom:1px dashed #2a355066}
 .gbox .r b{direction:ltr;unicode-bidi:isolate;font-weight:500}
 .gbox .r.key{color:#fbbf24;font-weight:700}
 .gbox .r.future{color:#a5f3fc}
@@ -106,6 +106,15 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
  .hours{font-size:10px;flex-direction:column;gap:2px}
  header h1{font-size:19px}
 }
+.story h4{margin:12px 0 6px;font-size:16px}
+.story .ln{font-size:14px;line-height:1.6;margin:2px 0}
+.story .lab{color:var(--mut)}
+.insight{background:linear-gradient(90deg,#f59e0b22,transparent);border-right:3px solid #f59e0b;padding:10px 12px;border-radius:8px;font-size:14px;line-height:1.6}
+.wt{display:inline-block;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
+.wt0{background:#22c55e33;color:#86efac}.wt1{background:#eab30833;color:#fde047}.wt2{background:#f9731633;color:#fdba74}.wt3{background:#ef444433;color:#fca5a5}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12px;background:#0b1020;border:1px solid var(--line);border-radius:8px;padding:3px 7px}
+.chip b{direction:ltr;unicode-bidi:isolate}
 </style>
 </head>
 <body>
@@ -139,6 +148,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
       <button class="pri" id="saveSettings">שמור</button>
       <button id="exportBtn">גיבוי לקובץ</button>
       <label class="row" style="gap:6px"><button id="importBtnFake">שחזור מקובץ</button><input type="file" id="importFile" accept=".json" class="hidden"></label>
+      <button id="riskBtn" class="pri">צמצום סיכונים ומיקוד מידע</button>
       <button id="closeSettings">סגור</button>
     </div>
     <p class="hint">הנתונים שהאפליקציה אוספת וההערות שלך נשמרים בדפדפן הזה בלבד. כדאי לגבות מדי פעם.</p>
@@ -147,6 +157,23 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="home">
     <div class="grid" id="grid"></div>
     <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
+  </section>
+
+  <section id="risk" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">צמצום סיכונים ומיקוד מידע</h2><button id="riskBack">→ חזרה</button></div>
+      <p class="hint">כאן רואים את כל הנכסים זה ליד זה, לפי מה שקרה להם בעבר ואיפה הם עומדים היום. זה כלי לסדר את המחשבה, לא המלצה לקנות או למכור. את שיטת גאן נוסיף לכאן בהמשך.</p>
+      <div class="gbox" style="margin:10px 0">
+        <div class="r"><span>מהשיא</span><span>כמה המחיר היום רחוק מהשיא של כל הזמנים</span></div>
+        <div class="r"><span>הנפילה הגדולה</span><span>הירידה הכי עמוקה שהנכס עבר בהיסטוריה שיש לנו</span></div>
+        <div class="r"><span>מתוך הנפילה הגדולה</span><span>כמה מהירידה הכי גרועה כבר "נוצלה" עכשיו</span></div>
+        <div class="r"><span>תנודתיות</span><span>כמה המחיר קופץ בשנה רגילה; גבוה יותר = מסוכן יותר</span></div>
+        <div class="r"><span>חצי השנה</span><span>האם המחיר מעל או מתחת לאמצע בין השפל לשיא של השנה האחרונה</span></div>
+        <div class="r"><span>פסיכולוגיה</span><span>כמה פחד או התלהבות הניעו את הנפילה הגדולה</span></div>
+      </div>
+      <div class="row"><button id="loadAllFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="riskNote"></span></div>
+    </div>
+    <div class="grid" id="riskGrid"></div>
   </section>
 
   <section id="detail" class="hidden">
@@ -173,6 +200,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
       <div class="chartwrap"><canvas id="chart"></canvas></div>
       <p class="hint">לחיצה על נקודה בגרף מוסיפה סימון בתאריך ובמחיר של אותה נקודה. סימונים מופיעים בגרף כעיגולים צבעוניים.</p>
     </div>
+    <div class="panel" id="storyPanel"></div>
     <div class="panel" id="gannPanel">
       <h3 style="margin-top:0">כלי גאן</h3>
       <div class="gann-bar">
@@ -209,6 +237,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   </div>
 </div>
 
+<script src="stories.js"></script>
 <script>
 const DEFAULT_SYMS = [
   {sym:'SPY', name:'אס אנד פי 500'},
@@ -553,6 +582,89 @@ const gannPlugin={id:'gann',afterDatasetsDraw(chart){
   ctx.restore();
 }};
 
+
+/* ---------- history stats, stories, risk view ---------- */
+const WCLASS={'נמוך':'wt0','בינוני':'wt1','גבוה':'wt2','גבוה מאוד':'wt3'};
+function seriesFor(sym){
+  const f=S.full[sym]&&S.full[sym].values||[], h=S.hist[sym]&&S.hist[sym].values||[];
+  let v=(f.length&&f[0][0]<(h[0]||['9'])[0]) ? f.filter(x=>!h.length||x[0]<h[0][0]).concat(h) : h.slice();
+  if(S.full[sym]&&S.full[sym].note) v=f.slice();
+  const q=S.quotes[sym]; if(q&&q.price&&!(S.full[sym]&&S.full[sym].note)){ if(v.length&&v[v.length-1][0]===today()) v[v.length-1]=[today(),q.price]; else v.push([today(),q.price]); }
+  return v.filter(x=>x[1]>0);
+}
+function statsFor(sym){
+  const v=seriesFor(sym); if(v.length<10) return null;
+  let pk=0, best={dd:0}, ath=0;
+  for(let i=0;i<v.length;i++){
+    if(v[i][1]>v[pk][1]) pk=i;
+    if(v[i][1]>v[ath][1]) ath=i;
+    const dd=v[i][1]/v[pk][1]-1; if(dd<best.dd) best={dd,p:pk,t:i};
+  }
+  let rec=null; if(best.t!=null){ let m=best.t; for(let i=best.t;i<v.length;i++) if(v[i][1]>v[m][1]) m=i; rec={gain:v[m][1]/v[best.t][1]-1, at:v[m][0]}; }
+  const last=v[v.length-1][1], cur=last/v[ath][1]-1;
+  const h=(S.hist[sym]&&S.hist[sym].values||[]).slice(-252);
+  let vol=null, mid=null, above=null;
+  if(h.length>30){ const r=[]; for(let i=1;i<h.length;i++) r.push(Math.log(h[i][1]/h[i-1][1]));
+    const m=r.reduce((a,b)=>a+b,0)/r.length; vol=Math.sqrt(r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1))*Math.sqrt(sym.includes('/')?365:252);
+    const hi=Math.max(...h.map(x=>x[2]||x[1])), lo=Math.min(...h.map(x=>x[3]||x[1])); mid=(hi+lo)/2; above=last>=mid; }
+  return {from:v[0][0], ath:{p:v[ath][1],d:v[ath][0]}, cur, mdd:best.dd, mddPeak:best.p!=null?v[best.p]:null, mddTrough:best.t!=null?v[best.t]:null, rec, vol, mid, above, last};
+}
+const fd=d=>d?d.split('-').reverse().join('/'):'';
+function renderStory(){
+  const st=STORIES[cur]||{}, x=statsFor(cur);
+  let h='<div class="story">';
+  if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
+  const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
+    <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
+    <div class="ln"><span class="lab">הצד הפסיכולוגי:</span> ${o.psych} <span class="wt ${WCLASS[o.w]||'wt1'}">השפעה: ${o.w}</span></div>`:'';
+  if(st.fall||st.rise) h+=`<h3 style="margin:${st.insight?'16px':'0'} 0 0">📜 הנפילה הגדולה והעלייה הגדולה</h3>`+part('הנפילה הגדולה',st.fall,'📉')+part('העלייה הגדולה',st.rise,'📈');
+  if(x){
+    h+=`<h4>🔢 לפי הנתונים שבאפליקציה (מ־${fd(x.from)})</h4>
+    <div class="ln">השיא של כל הזמנים: <b dir="ltr">${fmt(x.ath.p)}</b> ב־${fd(x.ath.d)} · היום <b dir="ltr">${pct(x.cur*100)}</b> מהשיא</div>`;
+    if(x.mddTrough) h+=`<div class="ln">הנפילה הכי עמוקה: <b dir="ltr">${pct(x.mdd*100)}</b>, מ־${fd(x.mddPeak[0])} עד ${fd(x.mddTrough[0])}${x.rec?` · ומשם עלייה של <b dir="ltr">${pct(x.rec.gain*100)}</b> עד ${fd(x.rec.at)}`:''}</div>`;
+    h+=`<div class="hint">כדי לראות את כל ההיסטוריה, לחץ למעלה על "מאז ההקמה" פעם אחת.</div>`;
+  }
+  h+='</div>';
+  $('storyPanel').innerHTML=h;
+  $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x));
+}
+function showRisk(){ history.pushState({layer:'risk'},''); $('settings').classList.add('hidden'); $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); window.scrollTo(0,0); renderRisk(); }
+function closeRisk(){ $('risk').classList.add('hidden'); $('home').classList.remove('hidden'); }
+function renderRisk(){
+  const g=$('riskGrid'); g.innerHTML='';
+  const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
+  GROUP_ORDER.filter(k=>groups[k]).forEach(k=>{
+    const hh=document.createElement('h2'); hh.className='grp'; hh.textContent=(GROUP_ICON[k]?GROUP_ICON[k]+' ':'')+k; g.appendChild(hh);
+    groups[k].forEach(([s,idx])=>{
+      const L=look(s.sym,idx), x=statsFor(s.sym), st=STORIES[s.sym]||{};
+      const c=document.createElement('div'); c.className='card'; c.style.setProperty('--c',L.c);
+      let chips='';
+      if(x){
+        const used=x.mdd<0?Math.max(0,x.cur/x.mdd):0;
+        chips+=`<span class="chip">מהשיא <b>${pct(x.cur*100)}</b></span>`;
+        chips+=`<span class="chip">הנפילה הגדולה <b>${pct(x.mdd*100)}</b></span>`;
+        chips+=`<span class="chip">מתוך הנפילה הגדולה <b>${Math.round(used*100)}%</b></span>`;
+        if(x.vol!=null) chips+=`<span class="chip">תנודתיות <b>${Math.round(x.vol*100)}%</b></span>`;
+        if(x.above!=null) chips+=`<span class="chip">חצי השנה: <span class="${x.above?'up':'down'}">${x.above?'מעל':'מתחת'}</span></span>`;
+      } else chips+='<span class="chip">ממתין לנתונים</span>';
+      if(st.fall) chips+=`<span class="wt ${WCLASS[st.fall.w]||'wt1'}">פסיכולוגיה: ${st.fall.w}</span>`;
+      c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${s.name}</span></span><span class="tk">${s.sym}</span></div>
+        <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>`;
+      c.onclick=()=>{ $('risk').classList.add('hidden'); openDetail(s.sym); };
+      g.appendChild(c);
+    });
+  });
+  const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
+  $('riskNote').textContent=missing?('ל־'+missing+' נכסים עדיין אין היסטוריה מלאה, ולכן הנפילה הגדולה אצלם מחושבת רק על השנים האחרונות.'):'יש היסטוריה מלאה לכל הנכסים.';
+}
+$('riskBtn').onclick=()=>{ history.back(); setTimeout(showRisk,50); };
+$('riskBack').onclick=()=>history.back();
+$('loadAllFull').onclick=async()=>{
+  const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2));
+  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; $('riskNote').textContent='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; if(!$('risk').classList.contains('hidden')) renderRisk(); }
+  if(!$('risk').classList.contains('hidden')) renderRisk();
+};
+
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
 function openDetail(sym){
@@ -567,7 +679,8 @@ $('backBtn').onclick=()=>history.back();
 window.addEventListener('popstate',()=>{
   if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
   if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); return; }
-  if(cur){ closeDetail(); return; }
+  if(cur){ closeDetail(); if(history.state&&history.state.layer==='risk'){ $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); renderRisk(); } return; }
+  if(!$('risk').classList.contains('hidden')){ closeRisk(); return; }
 });
 $('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
   if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
@@ -606,7 +719,7 @@ function renderDetail(){
       <span>פתיחה היום: <b>${fmt(q.open)}</b></span><span>טווח יומי: <b>${fmt(q.low)} – ${fmt(q.high)}</b></span>
       <span>נקודות: <b>${vals.length}</b></span>`;
   } else $('dStats').innerHTML='<span>עדיין אין נתונים לטווח הזה</span>';
-  computeGann(); drawChart(); renderNotes(); renderGannUI();
+  computeGann(); drawChart(); renderNotes(); renderGannUI(); renderStory();
 }
 function noteIndex(n){
   if(!series.length) return -1;
