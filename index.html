@@ -115,6 +115,13 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{font-size:12px;background:#0b1020;border:1px solid var(--line);border-radius:8px;padding:3px 7px}
 .chip b{direction:ltr;unicode-bidi:isolate}
+.ttable{width:100%;border-collapse:collapse;font-size:14px}
+.ttable th{color:var(--mut);font-weight:500;text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);font-size:12px}
+.ttable td{padding:9px 4px;border-bottom:1px solid #2a355066;vertical-align:middle}
+.ttable tr.rw{cursor:pointer}.ttable tr.rw:hover td{background:#ffffff08}
+.ttable .num{direction:ltr;unicode-bidi:isolate;text-align:left;white-space:nowrap}
+.str{display:inline-block;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
+.str.s{background:#22c55e33;color:#86efac}.str.m{background:#60a5fa33;color:#bfdbfe}
 </style>
 </head>
 <body>
@@ -122,6 +129,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <h1>מעקב המניות שלי</h1>
   <div class="status" id="status">טוען…</div>
   <div class="row">
+    <button id="trendBtn">📈 מגמת עלייה</button>
     <button id="refreshBtn">רענן עכשיו</button>
     <button id="settingsBtn">הגדרות</button>
   </div>
@@ -139,9 +147,9 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <h2 style="margin-top:0">הגדרות</h2>
     <div class="row" style="margin-bottom:12px">
       <label>מפתח גישה: <input id="keyEdit" style="direction:ltr;width:280px"></label>
-      <label>רענון כל <select id="intervalSel"><option value="2">שתי דקות</option><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option></select></label>
+      <label>רענון כל <select id="intervalSel"><option value="2">שתי דקות</option><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option><option value="30">חצי שעה</option></select></label>
     </div>
-    <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. רענון כל חמש דקות מספיק לבערך שש שעות ביום; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
+    <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. עם שלושים נכסים, רענון כל רבע שעה מספיק לבערך שש שעות ביום, וכל חצי שעה ליום שלם; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
     <h3>המניות (שם ותווית מסחר)</h3>
     <div id="symEdit"></div>
     <div class="row" style="margin-top:12px">
@@ -157,6 +165,15 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="home">
     <div class="grid" id="grid"></div>
     <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
+  </section>
+
+  <section id="trend" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📈 במגמת עלייה בחצי השנה האחרונה</h2><button id="trendBack">→ חזרה</button></div>
+      <p class="hint">נכס נכנס לרשימה אם מתקיימים בו שני תנאים: המחיר היום גבוה מהמחיר לפני חצי שנה, והמחיר היום מעל הממוצע שלו בחצי השנה הזו. מגמה חזקה: עלייה של יותר מעשרים אחוז. לחיצה על שורה פותחת את הנכס.</p>
+      <div id="trendTable"></div>
+      <p class="hint" id="trendOthers"></p>
+    </div>
   </section>
 
   <section id="risk" class="hidden">
@@ -301,7 +318,7 @@ let lastPx={};
 const COLORS = ['#f59e0b','#ef4444','#22c55e','#60a5fa','#a855f7','#ec4899'];
 const API = 'https://api.twelvedata.com';
 const LS_KEY = 'stocktracker_v1';
-const MAX_TICKS = 4000;
+const MAX_TICKS = 1500;
 
 let S = load();
 function load(){
@@ -317,8 +334,23 @@ function load(){
   d.credits = d.credits || {day:'', used:0};
   return d;
 }
-let saveTimer=null;
-function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ setStatus('האחסון בדפדפן מלא או חסום — כדאי לגבות ולנקות'); } },200); }
+/* Storage: settings, notes and Gann choices stay small in localStorage;
+   the big price caches live in IndexedDB so they can never crowd out the notes. */
+const CACHE_KEYS=['hist','full','intra','ticks','quotes'];
+let idb=null, saveTimer=null; const dirty=new Set(CACHE_KEYS);
+function idbOpen(){ return new Promise(res=>{ try{ const r=indexedDB.open('stocktracker',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); }catch(e){ res(null); } }); }
+function idbGet(k){ return new Promise(res=>{ try{ const q=idb.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>res(undefined); }catch(e){ res(undefined); } }); }
+function idbPut(k,v){ try{ idb.transaction('kv','readwrite').objectStore('kv').put(v,k); }catch(e){} }
+async function initCache(){
+  idb=await idbOpen(); if(!idb) return;
+  for(const k of CACHE_KEYS){ const v=await idbGet(k); if(v && Object.keys(v).length) S[k]=Object.assign({},S[k],v); }
+  save(...CACHE_KEYS);
+}
+function save(...keys){ keys.forEach(k=>dirty.add(k)); clearTimeout(saveTimer); saveTimer=setTimeout(()=>{
+  const core={}; Object.keys(S).forEach(k=>{ if(!CACHE_KEYS.includes(k)) core[k]=S[k]; });
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(core)); }catch(e){ setStatus('לא הצלחתי לשמור את ההגדרות והסימונים בדפדפן'); }
+  if(idb){ dirty.forEach(k=>idbPut(k,S[k])); dirty.clear(); }
+},300); }
 
 const $ = id => document.getElementById(id);
 const today = () => new Date().toISOString().slice(0,10);
@@ -357,7 +389,7 @@ async function loadHistory(sym){
   if(h && h.v===2 && h.date===today() && h.values && h.values.length) return;
   const j = await enqueue('/time_series?symbol='+encodeURIComponent(sym)+'&interval=1day&outputsize=1000', 1);
   const vals=(j.values||[]).map(v=>[v.datetime.slice(0,10), parseFloat(v.close), parseFloat(v.high), parseFloat(v.low)]).reverse();
-  S.hist[sym]={v:2, date:today(), values:vals}; save();
+  S.hist[sym]={v:2, date:today(), values:vals}; save('hist');
 }
 async function loadIntra(sym){
   const f=S.intra[sym];
@@ -368,7 +400,7 @@ async function loadIntra(sym){
     const d=new Date(vals[vals.length-1][0]).toDateString();
     vals=vals.filter(v=>new Date(v[0]).toDateString()===d || vals[vals.length-1][0]-v[0] < 10*3600e3);
   } else vals=vals.slice(-288);
-  S.intra[sym]={t:Date.now(), values:vals}; save();
+  S.intra[sym]={t:Date.now(), values:vals}; save('intra');
 }
 async function loadFull(sym){
   const f=S.full[sym];
@@ -393,7 +425,7 @@ async function loadFull(sym){
       }
     }catch(e){ console.warn('long history failed',e); }
   }
-  S.full[sym]={v:2, date:today(), values:vals, note}; save();
+  S.full[sym]={v:2, date:today(), values:vals, note}; save('full');
 }
 const LONG={
   'SPY':{url:'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv', col:'SP500', note:'מדד אס אנד פי עצמו מאז אלף שמונה מאות שבעים ואחת (ממוצעים חודשיים), ובשנים האחרונות לפי הקרן'},
@@ -417,12 +449,12 @@ async function refreshQuotes(){
       for(const s of ch){
         const q=map[s]; if(!q || q.status==='error' || q.code){ errs.push(s); continue; }
         const price=parseFloat(q.close);
-        S.quotes[s]={price, change:parseFloat(q.change), pct:parseFloat(q.percent_change), prev:parseFloat(q.previous_close), open:parseFloat(q.open), high:parseFloat(q.high), low:parseFloat(q.low), wk52:q.fifty_two_week||null, open_mkt:q.is_market_open, t:Date.now()};
+        S.quotes[s]={d:(q.datetime||'').slice(0,10)||today(), price, change:parseFloat(q.change), pct:parseFloat(q.percent_change), prev:parseFloat(q.previous_close), open:parseFloat(q.open), high:parseFloat(q.high), low:parseFloat(q.low), wk52:q.fifty_two_week||null, open_mkt:q.is_market_open, t:Date.now()};
         const arr=S.ticks[s]=S.ticks[s]||[];
         arr.push([Date.now(), price]); if(arr.length>MAX_TICKS) arr.splice(0,arr.length-MAX_TICKS);
       }
-      save(); renderGrid(); if(cur) renderDetail();
-      if(cur && range==='ticks') loadIntra(cur).then(()=>{ if(cur&&range==='ticks') renderDetail(); }).catch(()=>{});
+      save('quotes','ticks'); renderGrid(); if(cur && ch.includes(cur)) renderDetail();
+      if(cur && ch.includes(cur) && range==='ticks') loadIntra(cur).then(()=>{ if(cur&&range==='ticks') renderDetail(); }).catch(()=>{});
     }catch(e){ errs.push(ch.join(',')+': '+e.message); }
   }
   const t=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
@@ -430,7 +462,7 @@ async function refreshQuotes(){
 }
 async function loadAllHistory(){
   for(const s of S.symbols){
-    try{ await loadHistory(s.sym); renderGrid(); if(cur===s.sym) renderDetail(); }
+    try{ await loadHistory(s.sym); renderGrid(); if(cur===s.sym) renderDetail(); if(!$('trend').classList.contains('hidden')) renderTrend(); }
     catch(e){ console.warn(s.sym,e); }
   }
 }
@@ -467,7 +499,7 @@ function renderGrid(){
     const L=look(s.sym,idx);
     const c=document.createElement('div'); c.className='card'; c.style.setProperty('--c',L.c);
     const cls=q.pct>=0?'up':'down';
-    c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${s.name}</span></span><span class="tk">${s.sym}</span></div>
+    c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
       <div class="desc">${descOf(s.sym)}</div>
       <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
       <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
@@ -482,8 +514,9 @@ function renderGrid(){
 }
 function flash(sym,p){ const o=lastPx[sym]; lastPx[sym]=p; if(o==null||p==null||o===p) return ''; return p>o?'flash-up':'flash-down'; }
 function spark(cv, sym){
-  const h=(S.hist[sym]&&S.hist[sym].values)||[]; let pts=h.slice(-30).map(v=>v[1]);
-  const q=S.quotes[sym]; if(q&&q.price) pts.push(q.price);
+  const h=(S.hist[sym]&&S.hist[sym].values)||[]; const q=S.quotes[sym];
+  let pts=h.slice(-30).filter(v=>!(q&&q.d&&v[0]===q.d)).map(v=>v[1]);
+  if(q&&q.price) pts.push(q.price);
   const W=cv.clientWidth||200, H=44, dpr=window.devicePixelRatio||1; cv.width=W*dpr; cv.height=H*dpr;
   const x=cv.getContext('2d'); x.scale(dpr,dpr);
   if(pts.length<2) return;
@@ -589,7 +622,7 @@ function seriesFor(sym){
   const f=S.full[sym]&&S.full[sym].values||[], h=S.hist[sym]&&S.hist[sym].values||[];
   let v=(f.length&&f[0][0]<(h[0]||['9'])[0]) ? f.filter(x=>!h.length||x[0]<h[0][0]).concat(h) : h.slice();
   if(S.full[sym]&&S.full[sym].note) v=f.slice();
-  const q=S.quotes[sym]; if(q&&q.price&&!(S.full[sym]&&S.full[sym].note)){ if(v.length&&v[v.length-1][0]===today()) v[v.length-1]=[today(),q.price]; else v.push([today(),q.price]); }
+  const q=S.quotes[sym]; if(q&&q.price&&!(S.full[sym]&&S.full[sym].note)){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
   return v.filter(x=>x[1]>0);
 }
 function statsFor(sym){
@@ -602,7 +635,7 @@ function statsFor(sym){
   }
   let rec=null; if(best.t!=null){ let m=best.t; for(let i=best.t;i<v.length;i++) if(v[i][1]>v[m][1]) m=i; rec={gain:v[m][1]/v[best.t][1]-1, at:v[m][0]}; }
   const last=v[v.length-1][1], cur=last/v[ath][1]-1;
-  const h=(S.hist[sym]&&S.hist[sym].values||[]).slice(-252);
+  const yAgo=addDays(today(),-365); const h=(S.hist[sym]&&S.hist[sym].values||[]).filter(x=>x[0]>=yAgo);
   let vol=null, mid=null, above=null;
   if(h.length>30){ const r=[]; for(let i=1;i<h.length;i++) r.push(Math.log(h[i][1]/h[i-1][1]));
     const m=r.reduce((a,b)=>a+b,0)/r.length; vol=Math.sqrt(r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1))*Math.sqrt(sym.includes('/')?365:252);
@@ -648,7 +681,7 @@ function renderRisk(){
         if(x.above!=null) chips+=`<span class="chip">חצי השנה: <span class="${x.above?'up':'down'}">${x.above?'מעל':'מתחת'}</span></span>`;
       } else chips+='<span class="chip">ממתין לנתונים</span>';
       if(st.fall) chips+=`<span class="wt ${WCLASS[st.fall.w]||'wt1'}">פסיכולוגיה: ${st.fall.w}</span>`;
-      c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${s.name}</span></span><span class="tk">${s.sym}</span></div>
+      c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
         <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>`;
       c.onclick=()=>{ $('risk').classList.add('hidden'); openDetail(s.sym); };
       g.appendChild(c);
@@ -657,13 +690,45 @@ function renderRisk(){
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('riskNote').textContent=missing?('ל־'+missing+' נכסים עדיין אין היסטוריה מלאה, ולכן הנפילה הגדולה אצלם מחושבת רק על השנים האחרונות.'):'יש היסטוריה מלאה לכל הנכסים.';
 }
-$('riskBtn').onclick=()=>{ history.back(); setTimeout(showRisk,50); };
+let wantRisk=false;
+$('riskBtn').onclick=()=>{ wantRisk=true; history.back(); };
 $('riskBack').onclick=()=>history.back();
+let loadingAll=false;
 $('loadAllFull').onclick=async()=>{
+  if(loadingAll) return; loadingAll=true;
   const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2));
   let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; $('riskNote').textContent='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; if(!$('risk').classList.contains('hidden')) renderRisk(); }
-  if(!$('risk').classList.contains('hidden')) renderRisk();
+  loadingAll=false; if(!$('risk').classList.contains('hidden')) renderRisk();
 };
+
+
+/* ---------- six-month uptrend view ---------- */
+function trendFor(sym){
+  const q=S.quotes[sym]; let v=((S.hist[sym]&&S.hist[sym].values)||[]).map(x=>[x[0],x[1]]);
+  if(q&&q.price){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
+  if(v.length<40) return null;
+  const last=v[v.length-1], from6=addDays(last[0],-182), from1=addDays(last[0],-30);
+  const w=v.filter(x=>x[0]>=from6); if(w.length<20 || v[0][0]>from6) return null;
+  const p6=w[0][1], p1=(v.find(x=>x[0]>=from1)||w[0])[1];
+  const avg=w.reduce((a,x)=>a+x[1],0)/w.length;
+  const ch6=last[1]/p6-1, ch1=last[1]/p1-1;
+  return {ch6, ch1, avg, above:last[1]>avg, up:ch6>0&&last[1]>avg, strong:ch6>0.2, price:last[1]};
+}
+function showTrend(){ history.pushState({layer:'trend'},''); $('home').classList.add('hidden'); $('trend').classList.remove('hidden'); window.scrollTo(0,0); renderTrend(); }
+function closeTrend(){ $('trend').classList.add('hidden'); $('home').classList.remove('hidden'); }
+function renderTrend(){
+  const rows=[], others=[], wait=[];
+  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); if(!t) wait.push(s.name); else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
+  rows.sort((a,b)=>b[2].ch6-a[2].ch6);
+  if(!rows.length){ $('trendTable').innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
+  else $('trendTable').innerHTML=`<table class="ttable"><tr><th>נכס</th><th>חצי שנה</th><th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
+    return `<tr class="rw" data-sym="${esc(s.sym)}"><td>${L.i} ${esc(s.name)}<div class="tk">${esc(s.sym)}</div></td><td class="num up">${pct(t.ch6*100)}</td><td class="num ${t.ch1>=0?'up':'down'}">${pct(t.ch1*100)}</td><td><span class="str ${t.strong?'s':'m'}">${t.strong?'חזקה':'מתונה'}</span></td></tr>`; }).join('')}</table>`;
+  $('trendTable').querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>{ $('trend').classList.add('hidden'); openDetail(tr.dataset.sym); });
+  $('trendOthers').textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'.':'');
+}
+$('trendBtn').onclick=()=>{ if($('trend').classList.contains('hidden')){ if(cur||!$('risk').classList.contains('hidden')||!$('settings').classList.contains('hidden')){ wantTrend=true; history.back(); } else showTrend(); } };
+$('trendBack').onclick=()=>history.back();
+let wantTrend=false;
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
@@ -678,9 +743,14 @@ $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
   if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
-  if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); return; }
-  if(cur){ closeDetail(); if(history.state&&history.state.layer==='risk'){ $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); renderRisk(); } return; }
-  if(!$('risk').classList.contains('hidden')){ closeRisk(); return; }
+  if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); if(wantRisk){ wantRisk=false; showRisk(); } else if(wantTrend){ wantTrend=false; showTrend(); } return; }
+  if(cur){ closeDetail(); const ly=history.state&&history.state.layer;
+    if(ly==='risk'){ $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); renderRisk(); }
+    else if(ly==='trend'){ $('home').classList.add('hidden'); $('trend').classList.remove('hidden'); renderTrend(); }
+    else if(wantTrend){ wantTrend=false; showTrend(); }
+    return; }
+  if(!$('risk').classList.contains('hidden')){ closeRisk(); if(wantTrend){ wantTrend=false; showTrend(); } return; }
+  if(!$('trend').classList.contains('hidden')){ closeTrend(); return; }
 });
 $('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
   if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
@@ -697,7 +767,7 @@ function buildSeries(){
   const src = range==='max' ? S.full[cur] : S.hist[cur];
   let h=((src&&src.values)||[]).slice();
   const q=S.quotes[cur];
-  if(q&&q.price&&!(range==='max'&&src&&src.note)){ const row=[today(),q.price,isNaN(q.high)?q.price:q.high,isNaN(q.low)?q.price:q.low]; if(h.length&&h[h.length-1][0]===today()) h[h.length-1]=row; else h.push(row); }
+  if(q&&q.price&&!(range==='max'&&src&&src.note)){ const qd=q.d||today(); const row=[qd,q.price,isNaN(q.high)?q.price:q.high,isNaN(q.low)?q.price:q.low]; if(h.length&&h[h.length-1][0]===qd) h[h.length-1]=row; else if(!h.length||h[h.length-1][0]<qd) h.push(row); }
   if(range!=='all' && range!=='max') h=h.slice(-parseInt(range));
   return h.map(v=>({label:v[0].split('-').reverse().join('/'), ts:new Date(v[0]+'T12:00:00').getTime(), day:v[0], v:v[1], hi:(v[2]==null||isNaN(v[2]))?v[1]:v[2], lo:(v[3]==null||isNaN(v[3]))?v[1]:v[3]}));
 }
@@ -774,7 +844,7 @@ function renderNotes(){
     $('notes').appendChild(d);
   });
 }
-function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ---------- note modal ---------- */
 let pending=null, selColor=COLORS[0];
@@ -802,7 +872,7 @@ $('saveSettings').onclick=()=>{
 };
 $('exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify({...S,apiKey:''})],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='stock-tracker-backup-'+today()+'.json'; a.click(); };
 $('importBtnFake').onclick=()=>$('importFile').click();
-$('importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); const k=S.apiKey; S={...load(),...d}; S.apiKey=S.apiKey||k; save(); renderGrid(); setStatus('השחזור הצליח'); }catch(err){ setStatus('הקובץ לא תקין'); } };
+$('importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); const k=S.apiKey; S={...load(),...d}; S.apiKey=S.apiKey||k; save(...CACHE_KEYS); renderGrid(); setStatus('השחזור הצליח'); }catch(err){ setStatus('הקובץ לא תקין'); } };
 
 $('saveKey').onclick=async ()=>{
   const k=$('keyInput').value.trim(); if(!k) return; S.apiKey=k; save(); $('setupErr').textContent='בודק…';
@@ -818,8 +888,11 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiK
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
 renderGrid();
-if(!S.apiKey){ $('setup').classList.remove('hidden'); setStatus('צריך מפתח גישה כדי להתחיל'); }
-else start();
+initCache().then(()=>{
+  renderGrid();
+  if(!S.apiKey){ $('setup').classList.remove('hidden'); setStatus('צריך מפתח גישה כדי להתחיל'); }
+  else start();
+});
 </script>
 <script>if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
