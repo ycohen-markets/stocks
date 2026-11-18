@@ -768,13 +768,14 @@ function trendFor(sym){
 }
 function renderTrend(){
   const rows=[], others=[], wait=[];
-  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); if(!t) wait.push(s.name); else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
+  const young=[];
+  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); const h=S.hist[s.sym]&&S.hist[s.sym].values||[]; if(!t){ if(h.length>=40) young.push(s.name); else wait.push(s.name); } else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
   rows.sort((a,b)=>b[2].ch6-a[2].ch6);
   if(!rows.length){ $('trendTable').innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
   else $('trendTable').innerHTML=`<table class="ttable"><tr><th>נכס</th><th>חצי שנה</th><th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
     return `<tr class="rw" data-sym="${esc(s.sym)}"><td>${L.i} ${esc(s.name)}<div class="tk">${esc(s.sym)}</div></td><td class="num up">${pct(t.ch6*100)}</td><td class="num ${t.ch1>=0?'up':'down'}">${pct(t.ch1*100)}</td><td><span class="str ${t.strong?'s':'m'}">${t.strong?'חזקה':'מתונה'}</span></td></tr>`; }).join('')}</table>`;
   $('trendTable').querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>openDetail(tr.dataset.sym));
-  $('trendOthers').textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'.':'');
+  $('trendOthers').textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'. ':'')+(young.length?'נסחרים פחות מחצי שנה ולכן לא נבדקו: '+young.join(', ')+'.':'');
 }
 
 /* ---------- Gann foundation 1: the half ---------- */
