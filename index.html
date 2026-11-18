@@ -862,15 +862,24 @@ function renderGann(){
   $('halfFew').innerHTML=rowsFew.map(x=>x[1]).join('')||'<p class="hint">אין</p>';
   document.querySelectorAll('#gann .gbox[data-sym]').forEach(b=>b.onclick=()=>b.classList.toggle('open'));
   const t=halfStats(all);
-  $('halfSummary').innerHTML=`<h3 style="margin-top:0">📊 ההסתברויות בכל הנכסים יחד</h3>
+  const pBroke=t.n?t.broke/t.n:null;
+  const coin=t.pHeld==null?'':t.pHeld>=0.6?'ברוב המקרים התיקון נעצר מעל החצי – הכלל עבד יותר מחצי מהזמן.':t.pHeld<=0.4?'ברוב המקרים התיקון ירד מתחת לחצי – הכלל לא החזיק ברוב הזמן.':'הסיכוי שהתיקון ייעצר מעל החצי הוא בערך כמו הטלת מטבע.';
+  const floor=t.pHP==null?'':t.pHP>=0.8?'חצי ממחיר השיא הוא רצפה הרבה יותר חזקה – הוא נשבר רק ב־'+pc(1-t.pHP)+' מהמקרים.':'גם חצי ממחיר השיא נשבר לא מעט – ב־'+pc(1-t.pHP)+' מהמקרים.';
+  $('halfSummary').innerHTML=`<h3 style="margin-top:0">📊 מה יצא בכל הנכסים יחד</h3>
+    <p class="hint">נבדקו <b>${t.n}</b> עליות גדולות. התשובות כאן הן לשלוש שאלות שונות, ולכן הן לא מסתכמות למאה.</p>
+    <h4>שאלה 1: אחרי עלייה גדולה – איפה נעצר התיקון?</h4>
     <div class="sumgrid">
-      <div class="gbox"><div class="big">${t.n}</div><div class="hint">עליות גדולות שנבדקו</div></div>
-      <div class="gbox"><div class="big up">${pc(t.pHeld)}</div><div class="hint">כיבדו את החצי וחזרו לשיא</div></div>
-      <div class="gbox"><div class="big down">${pc(t.n?t.broke/t.n:null)}</div><div class="hint">שברו את החצי</div></div>
-      <div class="gbox"><div class="big">${pc(t.pRec)}</div><div class="hint">מאלה ששברו – כבר חזרו לשיא חדש</div></div>
-      <div class="gbox"><div class="big">${pc(t.pHP)}</div><div class="hint">נשארו מעל חצי ממחיר השיא</div></div>
+      <div class="gbox"><div class="big up">${pc(t.pHeld)}</div><div class="hint">נעצרו מעל החצי וחזרו לשיא</div></div>
+      <div class="gbox"><div class="big down">${pc(pBroke)}</div><div class="hint">ירדו מתחת לחצי</div></div>
     </div>
-    <p class="hint">ההסתברות היא פשוט כמה פעמים זה קרה בעבר מתוך כל המקרים. זה לא מבטיח מה יקרה בפעם הבאה, ובנכס עם מעט מקרים המספר פחות אמין. תיקונים שעדיין נמשכים לא נספרו.</p>`;
+    <p class="hint">שני המספרים האלה הם שני הצדדים של אותה שאלה, וביחד הם מאה אחוז.</p>
+    <h4>שאלה 2: ומה קרה לאלה שירדו מתחת לחצי?</h4>
+    <div class="sumgrid"><div class="gbox"><div class="big">${pc(t.pRec)}</div><div class="hint">מהם חזרו בסוף לשיא חדש</div></div></div>
+    <p class="hint">כלומר שבירת החצי בדרך כלל לא הייתה סוף הסיפור, אלא תיקון עמוק יותר. שים לב: את הנכסים כאן בחרנו כי הם מצליחים היום, ונכסים שקרסו ונעלמו לא ברשימה – ולכן המספר הזה אופטימי מהמציאות. וגם "בסוף" יכול להיות אחרי חודשים או שנים.</p>
+    <h4>שאלה 3: הכלל השני – האם המחיר נשאר מעל חצי ממחיר השיא?</h4>
+    <div class="sumgrid"><div class="gbox"><div class="big">${pc(t.pHP)}</div><div class="hint">נשארו מעל חצי ממחיר השיא</div></div></div>
+    <p class="hint">דוגמה: מניה עלתה ממאה למאתיים. חצי מהדרך הוא 150, וחצי ממחיר השיא הוא 100. אם התיקון ירד ל־130, היא שברה את חצי הדרך אבל נשארה מעל חצי מהשיא. לכן הכלל השני מקל הרבה יותר.</p>
+    <div class="insight" style="margin-top:10px"><b>בשורה התחתונה:</b> ${coin} ${floor}<br><span class="hint">זה מה שקרה בעבר, לא הבטחה לעתיד. תיקונים שעדיין נמשכים לא נספרו.</span></div>`;
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('halfNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים. עם היסטוריה מלאה יהיו הרבה יותר מקרים.'):'הבדיקה רצה על כל ההיסטוריה.';
 }
