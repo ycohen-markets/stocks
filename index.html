@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="המניות שלי">
-<title>מעקב עשר המניות שלי</title>
+<title>מעקב המניות שלי</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -89,11 +89,28 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .gbox .r.key{color:#fbbf24;font-weight:700}
 .gbox .r.future{color:#a5f3fc}
 .picking{outline:2px dashed #fbbf24;outline-offset:4px;border-radius:8px}
+.grp{grid-column:1/-1;margin:18px 0 0;font-size:18px;color:#c7d2fe;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grp:first-child{margin-top:0}
+.desc{font-size:13px;color:var(--mut);margin-top:6px;line-height:1.4}
+@media (max-width:600px){
+ main{padding:12px 10px}
+ .grid{grid-template-columns:1fr 1fr;gap:8px}
+ .card{padding:10px}
+ .card .ic{width:28px;height:28px;font-size:15px}
+ .card .nm{font-size:14px}
+ .card .top{flex-wrap:wrap;gap:2px}
+ .desc{font-size:11px}
+ .px{font-size:18px}
+ .chg{font-size:12px}
+ .card canvas{height:32px}
+ .hours{font-size:10px;flex-direction:column;gap:2px}
+ header h1{font-size:19px}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>מעקב עשר המניות שלי</h1>
+  <h1>מעקב המניות שלי</h1>
   <div class="status" id="status">טוען…</div>
   <div class="row">
     <button id="refreshBtn">רענן עכשיו</button>
@@ -136,6 +153,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel">
       <div class="dhead">
         <div class="row"><button id="backBtn">→ חזרה</button><h2 style="margin:0" id="dName"></h2><span class="tk" id="dTk"></span></div>
+        <div class="desc" id="dDesc" style="flex-basis:100%"></div>
         <div style="text-align:left"><div class="px" id="dPx"></div><div class="chg" id="dChg"></div></div>
       </div>
       <div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -211,7 +229,45 @@ const LOOK = {
   'EIS':{c:'#0ea5e9',i:'✡️'}, 'ESLT':{c:'#ec4899',i:'🛩️'}, 'MSTR':{c:'#ef4444',i:'🪙'}
 };
 const PAL=['#3b82f6','#22c55e','#06b6d4','#84cc16','#eab308','#f97316','#8b5cf6','#0ea5e9','#ec4899','#ef4444'];
-function look(sym,i){ return LOOK[sym] || {c:PAL[i%PAL.length], i:'📈'}; }
+
+const INFO={
+ 'SPY':['התיק שלי','קרן שעוקבת אחרי חמש מאות החברות הגדולות בארצות הברית'],
+ 'GOOGL':['התיק שלי','חיפוש, יוטיוב, ענן ובינה מלאכותית'],
+ 'MSFT':['התיק שלי','תוכנה, ענן ושותפה גדולה בבינה מלאכותית'],
+ 'NVDA':['התיק שלי','מעבדים גרפיים, המוח של הבינה המלאכותית'],
+ 'GLD':['התיק שלי','קרן שמחזיקה זהב פיזי'],
+ 'USO':['התיק שלי','קרן שעוקבת אחרי מחיר הנפט'],
+ 'BTC/USD':['התיק שלי','המטבע הדיגיטלי הגדול בעולם'],
+ 'QQQ':['התיק שלי','קרן של מאה החברות הגדולות בנאסדק'],
+ 'EIS':['התיק שלי','קרן של מניות ישראליות שנסחרת בניו יורק'],
+ 'ESLT':['התיק שלי','תעשייה ביטחונית ישראלית'],
+ 'MSTR':['התיק שלי','חברה שמחזיקה כמות עצומה של ביטקוין'],
+ 'AVGO':['מתכנני שבבים','שבבי תקשורת ושבבים בהזמנה לענקיות הענן'],
+ 'AMD':['מתכנני שבבים','מעבדים למחשבים ולשרתים, המתחרה של אנבידיה'],
+ 'QCOM':['מתכנני שבבים','שבבים לטלפונים חכמים'],
+ 'TSM':['ייצור שבבים וזיכרון','מייצרת בפועל את השבבים של כולם, מטייוואן'],
+ 'INTC':['ייצור שבבים וזיכרון','מתכננת ומייצרת מעבדים למחשבים'],
+ 'MU':['ייצור שבבים וזיכרון','שבבי זיכרון, כולל זיכרון מהיר לבינה מלאכותית'],
+ 'ASML':['מכונות לייצור שבבים','המכונות היחידות שמדפיסות שבבים מתקדמים, הולנד'],
+ 'AMAT':['מכונות לייצור שבבים','ציוד למפעלי שבבים, הספקית הגדולה בעולם'],
+ 'LRCX':['מכונות לייצור שבבים','מכונות לחריטה ולשכבות דקות על השבב'],
+ 'VRT':['קירור וחשמל בחוות שרתים','קירור נוזלי ואספקת חשמל לחוות שרתים'],
+ 'ETN':['קירור וחשמל בחוות שרתים','ציוד חשמל: שנאים, לוחות ומערכות גיבוי'],
+ 'NVT':['קירור וחשמל בחוות שרתים','ארונות שרתים, קירור וחיבורי חשמל'],
+ 'ANET':['רשת ותקשורת','מתגי רשת שמחברים בין אלפי שרתים'],
+ 'CIEN':['רשת ותקשורת','סיבים אופטיים בין חוות שרתים'],
+ 'LITE':['רשת ותקשורת','רכיבי לייזר לתקשורת אופטית'],
+ 'CLS':['רשת ותקשורת','מרכיבה שרתים וציוד רשת לענקיות הענן'],
+ 'CEG':['חשמל ומבנים','חשמל מתחנות כוח גרעיניות'],
+ 'DLR':['חשמל ומבנים','בעלת מבני חוות שרתים להשכרה'],
+ 'EQIX':['חשמל ומבנים','רשת מבני חוות שרתים בכל העולם']
+};
+const GROUP_ORDER=['התיק שלי','מתכנני שבבים','ייצור שבבים וזיכרון','מכונות לייצור שבבים','קירור וחשמל בחוות שרתים','רשת ותקשורת','חשמל ומבנים','אחר'];
+const GROUP_ICON={'מתכנני שבבים':'🧩','ייצור שבבים וזיכרון':'🏭','מכונות לייצור שבבים':'⚙️','קירור וחשמל בחוות שרתים':'❄️','רשת ותקשורת':'🌐','חשמל ומבנים':'⚡'};
+const INFRA=[['AVGO','ברודקום'],['AMD','איי אם די'],['QCOM','קוואלקום'],['TSM','טי אס אם סי'],['INTC','אינטל'],['MU','מיקרון'],['ASML','אי אס אם אל'],['AMAT','אפלייד מטיריאלס'],['LRCX','לאם ריסרץ\''],['VRT','ורטיב'],['ETN','איטון'],['NVT','אנוונט'],['ANET','אריסטה'],['CIEN','סיינה'],['LITE','לומנטום'],['CLS','סלסטיקה'],['CEG','קונסטליישן אנרג\'י'],['DLR','דיגיטל ריאלטי'],['EQIX','אקוויניקס']];
+function grpOf(sym){ return (INFO[sym]||['אחר'])[0]; }
+function descOf(sym){ return (INFO[sym]||['',''])[1]; }
+function look(sym,i){ return LOOK[sym] || {c:PAL[i%PAL.length], i:GROUP_ICON[grpOf(sym)]||'📈'}; }
 let lastPx={};
 const COLORS = ['#f59e0b','#ef4444','#22c55e','#60a5fa','#a855f7','#ec4899'];
 const API = 'https://api.twelvedata.com';
@@ -225,6 +281,7 @@ function load(){
   d = d || {};
   d.apiKey = d.apiKey || '';
   d.interval = d.interval || 5;
+  if(!d.addedInfra){ const have=new Set((d.symbols||DEFAULT_SYMS).map(x=>x.sym)); d.symbols=(d.symbols||DEFAULT_SYMS).concat(INFRA.filter(x=>!have.has(x[0])).map(x=>({sym:x[0],name:x[1]}))); if(d.interval<15) d.interval=15; d.addedInfra=true; }
   d.symbols = d.symbols || DEFAULT_SYMS;
   if(!d.addedMSTR){ if(!d.symbols.find(x=>x.sym==='MSTR')) d.symbols=d.symbols.concat([{sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}]); d.addedMSTR=true; }
   d.hist = d.hist || {}; d.full = d.full || {}; d.intra = d.intra || {}; d.ticks = d.ticks || {}; d.quotes = d.quotes || {}; d.notes = d.notes || {};
@@ -373,12 +430,16 @@ function hoursHTML(sym){
 /* ---------- home grid ---------- */
 function renderGrid(){
   const g=$('grid'); g.innerHTML='';
-  S.symbols.forEach((s,idx)=>{
+  const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
+  GROUP_ORDER.filter(k=>groups[k]).forEach(k=>{
+  const h=document.createElement('h2'); h.className='grp'; h.textContent=(GROUP_ICON[k]?GROUP_ICON[k]+' ':'')+k; g.appendChild(h);
+  groups[k].forEach(([s,idx])=>{
     const q=S.quotes[s.sym]||{}; const n=(S.notes[s.sym]||[]).length;
     const L=look(s.sym,idx);
     const c=document.createElement('div'); c.className='card'; c.style.setProperty('--c',L.c);
     const cls=q.pct>=0?'up':'down';
     c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${s.name}</span></span><span class="tk">${s.sym}</span></div>
+      <div class="desc">${descOf(s.sym)}</div>
       <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
       <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
       <canvas></canvas>
@@ -387,6 +448,7 @@ function renderGrid(){
     c.onclick=()=>openDetail(s.sym);
     g.appendChild(c);
     spark(c.querySelector('canvas'), s.sym);
+  });
   });
 }
 function flash(sym,p){ const o=lastPx[sym]; lastPx[sym]=p; if(o==null||p==null||o===p) return ''; return p>o?'flash-up':'flash-down'; }
@@ -529,7 +591,7 @@ function buildSeries(){
 function renderDetail(){
   if(!cur) return;
   const s=S.symbols.find(x=>x.sym===cur); const q=S.quotes[cur]||{};
-  const L=look(cur,S.symbols.indexOf(s)); $('detail').style.setProperty('--c',L.c); $('dName').innerHTML='<span class="dic">'+L.i+'</span> '+esc(s.name); $('dTk').textContent=s.sym;
+  const L=look(cur,S.symbols.indexOf(s)); $('detail').style.setProperty('--c',L.c); $('dName').innerHTML='<span class="dic">'+L.i+'</span> '+esc(s.name); $('dTk').textContent=s.sym; $('dDesc').textContent=descOf(cur);
   $('dPx').textContent=fmt(q.price); $('dHours').innerHTML=hoursHTML(cur);
   $('dChg').className='chg '+(q.pct>=0?'up':'down');
   $('dChg').textContent=q.price!=null?((q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')'):'';
