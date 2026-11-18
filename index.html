@@ -52,7 +52,8 @@ main{padding:18px 20px;max-width:1300px;margin:0 auto}
 .note .tx{flex:1}
 .note .when{font-size:12px;color:var(--mut)}
 .hint{font-size:13px;color:var(--mut)}
-.sym-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.sym-row{display:grid;grid-template-columns:1fr 1fr 34px;gap:8px;margin-bottom:6px;align-items:center}
+.sym-row .del{padding:6px 0}
 .err{color:var(--down);font-size:13px}
 a{color:var(--acc)}
 .modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:20}
@@ -146,12 +147,15 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="settings" class="panel hidden">
     <h2 style="margin-top:0">הגדרות</h2>
     <div class="row" style="margin-bottom:12px">
-      <label>מפתח גישה: <input id="keyEdit" style="direction:ltr;width:280px"></label>
-      <label>רענון כל <select id="intervalSel"><option value="2">שתי דקות</option><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option><option value="30">חצי שעה</option></select></label>
+      <label>מפתח גישה: <input id="keyEdit" type="password" autocomplete="off" style="direction:ltr;width:240px"></label><button id="keyShow" type="button">הצג</button>
+      <label>רענון כל <select id="intervalSel"><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option><option value="30">חצי שעה</option></select></label>
     </div>
     <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. עם שלושים נכסים, רענון כל רבע שעה מספיק לבערך שש שעות ביום, וכל חצי שעה ליום שלם; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
-    <h3>המניות (שם ותווית מסחר)</h3>
+    <h3>הנכסים</h3>
+    <div class="sym-row hint" style="margin-bottom:2px"><span>שם בעברית</span><span>סימן מסחר באנגלית</span></div>
     <div id="symEdit"></div>
+    <button id="symAdd" type="button" style="margin-top:6px">+ הוספת נכס</button>
+    <div id="setErr" class="err"></div>
     <div class="row" style="margin-top:12px">
       <button class="pri" id="saveSettings">שמור</button>
       <button id="exportBtn">גיבוי לקובץ</button>
@@ -329,6 +333,7 @@ function load(){
   d.interval = d.interval || 5;
   if(!d.addedInfra){ const have=new Set((d.symbols||DEFAULT_SYMS).map(x=>x.sym)); d.symbols=(d.symbols||DEFAULT_SYMS).concat(INFRA.filter(x=>!have.has(x[0])).map(x=>({sym:x[0],name:x[1]}))); if(d.interval<15) d.interval=15; d.addedInfra=true; }
   d.symbols = d.symbols || DEFAULT_SYMS;
+  if(!(d.interval>=5)) d.interval=15;
   if(!d.addedMSTR){ if(!d.symbols.find(x=>x.sym==='MSTR')) d.symbols=d.symbols.concat([{sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}]); d.addedMSTR=true; }
   d.hist = d.hist || {}; d.full = d.full || {}; d.intra = d.intra || {}; d.ticks = d.ticks || {}; d.quotes = d.quotes || {}; d.notes = d.notes || {};
   d.credits = d.credits || {day:'', used:0};
@@ -437,8 +442,12 @@ async function loadLong(cfg){
   const ci=head.indexOf(cfg.col), di=0;
   return rows.slice(1).map(r=>r.split(',')).map(c=>{ let d=c[di]; if(d.length===7) d+='-01'; return [d, parseFloat(c[ci])]; }).filter(v=>v[0]&&!isNaN(v[1]));
 }
+let refreshing=false;
 async function refreshQuotes(){
-  if(!S.apiKey) return;
+  if(!S.apiKey || refreshing) return; refreshing=true;
+  try{ await refreshQuotesInner(); } finally { refreshing=false; }
+}
+async function refreshQuotesInner(){
   const syms=S.symbols.map(s=>s.sym);
   const chunks=[]; for(let i=0;i<syms.length;i+=5) chunks.push(syms.slice(i,i+5));
   let errs=[];
@@ -661,7 +670,7 @@ function renderStory(){
   $('storyPanel').innerHTML=h;
   $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x));
 }
-function showRisk(){ history.pushState({layer:'risk'},''); $('settings').classList.add('hidden'); $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); window.scrollTo(0,0); renderRisk(); }
+function showRisk(){ if(cur){ cur=null; $('detail').classList.add('hidden'); history.replaceState({layer:'risk'},''); } else history.pushState({layer:'risk'},''); $('settings').classList.add('hidden'); $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); window.scrollTo(0,0); renderRisk(); }
 function closeRisk(){ $('risk').classList.add('hidden'); $('home').classList.remove('hidden'); }
 function renderRisk(){
   const g=$('riskGrid'); g.innerHTML='';
@@ -858,21 +867,45 @@ $('nmCancel').onclick=()=>history.back();
 $('nmSave').onclick=()=>{ const t=$('nmText').value.trim(); if(!t) return; (S.notes[cur]=S.notes[cur]||[]).push({id:Date.now()+''+Math.random().toString(36).slice(2,6),ts:pending.ts,price:pending.price,label:pending.label,text:t,color:selColor}); save(); history.back(); renderDetail(); };
 
 /* ---------- settings ---------- */
+function symRow(name,sym){ const r=document.createElement('div'); r.className='sym-row';
+  r.innerHTML=`<input value="${esc(name)}" data-f="name" placeholder="שם"><input value="${esc(sym)}" data-f="sym" placeholder="למשל AAPL" style="direction:ltr"><button class="del" type="button" title="הסרה">✕</button>`;
+  r.querySelector('.del').onclick=()=>{ if(r.dataset.c){ r.remove(); } else { r.dataset.c=1; r.querySelector('.del').textContent='?'; } };
+  return r; }
 function showSettings(){
-  history.pushState({layer:'settings'},''); $('settings').classList.remove('hidden'); $('keyEdit').value=S.apiKey; $('intervalSel').value=S.interval;
-  $('symEdit').innerHTML=''; S.symbols.forEach((s,i)=>{ const r=document.createElement('div'); r.className='sym-row'; r.innerHTML=`<input value="${esc(s.name)}" data-i="${i}" data-f="name"><input value="${esc(s.sym)}" data-i="${i}" data-f="sym" style="direction:ltr">`; $('symEdit').appendChild(r); });
+  history.pushState({layer:'settings'},''); $('settings').classList.remove('hidden'); window.scrollTo(0,0);
+  $('keyEdit').value=S.apiKey; $('keyEdit').type='password'; $('keyShow').textContent='הצג';
+  $('intervalSel').value=String(S.interval); if($('intervalSel').value!==String(S.interval)) $('intervalSel').value='15';
+  $('setErr').textContent='';
+  $('symEdit').innerHTML=''; S.symbols.forEach(s=>$('symEdit').appendChild(symRow(s.name,s.sym)));
 }
+$('keyShow').onclick=()=>{ const k=$('keyEdit'); k.type=k.type==='password'?'text':'password'; $('keyShow').textContent=k.type==='password'?'הצג':'הסתר'; };
+$('symAdd').onclick=()=>{ const r=symRow('',''); $('symEdit').appendChild(r); r.querySelector('input').focus(); };
 $('settingsBtn').onclick=()=>$('settings').classList.contains('hidden')?showSettings():history.back();
 $('closeSettings').onclick=()=>history.back();
-$('saveSettings').onclick=()=>{
-  S.apiKey=$('keyEdit').value.trim(); S.interval=parseInt($('intervalSel').value);
-  const ns=S.symbols.map(s=>({...s}));
-  $('symEdit').querySelectorAll('input').forEach(inp=>{ ns[inp.dataset.i][inp.dataset.f]=inp.value.trim(); });
-  S.symbols=ns.filter(s=>s.sym); save(); history.back(); startTimer(); renderGrid(); loadAllHistory(); refreshQuotes();
+$('saveSettings').onclick=async()=>{
+  const rows=[...$('symEdit').querySelectorAll('.sym-row')].map(r=>({name:r.querySelector('[data-f=name]').value.trim(), sym:r.querySelector('[data-f=sym]').value.trim().toUpperCase().replace(/\s+/g,'')}));
+  const seen=new Set(), list=[];
+  for(const r of rows){ if(!r.sym) continue; if(seen.has(r.sym)) continue; seen.add(r.sym); list.push({sym:r.sym, name:r.name||r.sym}); }
+  if(!list.length){ $('setErr').textContent='צריך להשאיר לפחות נכס אחד.'; return; }
+  const key=$('keyEdit').value.trim();
+  if(key && key!==S.apiKey){
+    $('setErr').textContent='בודק את המפתח החדש… אם יש בקשות בתור, זה יכול לקחת עד דקה.';
+    const oldKey=S.apiKey; S.apiKey=key;
+    try{ await enqueue('/price?symbol=MSFT',1,true); }catch(e){ S.apiKey=oldKey; $('setErr').textContent='המפתח החדש לא עבד, והשארתי את הקודם: '+e.message; return; }
+  }
+  if(!key){ $('setErr').textContent='בלי מפתח גישה האפליקציה לא יכולה לקבל מחירים.'; return; }
+  S.apiKey=key; S.interval=parseInt($('intervalSel').value)||15; S.symbols=list;
+  save(); history.back(); startTimer(); renderGrid(); loadAllHistory(); refreshQuotes();
 };
-$('exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify({...S,apiKey:''})],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='stock-tracker-backup-'+today()+'.json'; a.click(); };
+$('exportBtn').onclick=()=>{ const b=new Blob([JSON.stringify({...S,apiKey:''})],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='stock-tracker-backup-'+today()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000); setStatus('קובץ הגיבוי נשמר בתיקיית ההורדות'); };
 $('importBtnFake').onclick=()=>$('importFile').click();
-$('importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); const k=S.apiKey; S={...load(),...d}; S.apiKey=S.apiKey||k; save(...CACHE_KEYS); renderGrid(); setStatus('השחזור הצליח'); }catch(err){ setStatus('הקובץ לא תקין'); } };
+$('importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const d=JSON.parse(await f.text()); if(!d||typeof d!=='object'||!Array.isArray(d.symbols)) throw new Error('bad');
+    const k=S.apiKey, myNotes=S.notes||{};
+    const notes={}; new Set([...Object.keys(myNotes),...Object.keys(d.notes||{})]).forEach(sym=>{ const m=new Map(); [...(d.notes||{})[sym]||[],...(myNotes[sym]||[])].forEach(n=>m.set(n.id,n)); notes[sym]=[...m.values()]; });
+    S={...S,...d,notes}; S.apiKey=k||d.apiKey||''; CACHE_KEYS.forEach(c=>S[c]=S[c]||{});
+    save(...CACHE_KEYS); renderGrid(); setStatus('השחזור הצליח. הסימונים מהגיבוי חוברו לסימונים הקיימים.'); history.back();
+  }catch(err){ setStatus('הקובץ הזה לא נראה כמו גיבוי של האפליקציה'); } };
 
 $('saveKey').onclick=async ()=>{
   const k=$('keyInput').value.trim(); if(!k) return; S.apiKey=k; save(); $('setupErr').textContent='בודק…';
