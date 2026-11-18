@@ -132,6 +132,9 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .legs{display:none;margin-top:8px}.open .legs{display:block}
 .leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
 .bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
+.risk{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
+.risk.r0{background:#22c55e1a;border-right:3px solid #22c55e}.risk.r1{background:#eab3081a;border-right:3px solid #eab308}.risk.r2{background:#ef44441a;border-right:3px solid #ef4444}
+.risk .lv{font-weight:700;font-size:14px}
 </style>
 </head>
 <body>
@@ -219,7 +222,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="risk" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">צמצום סיכונים ומיקוד מידע</h2><button id="riskBack">→ חזרה</button></div>
-      <p class="hint">כאן רואים את כל הנכסים זה ליד זה, לפי מה שקרה להם בעבר ואיפה הם עומדים היום. זה כלי לסדר את המחשבה, לא המלצה לקנות או למכור. את שיטת גאן נוסיף לכאן בהמשך.</p>
+      <p class="hint">כאן רואים את כל הנכסים זה ליד זה, לפי מה שקרה להם בעבר ואיפה הם עומדים היום, כולל כלל החצי של גאן. רמת הסיכון היא סיכום חשבוני של המדדים, כלי לסדר את המחשבה ולא המלצה לקנות או למכור. גודל העלייה לבדיקת החצי נלקח ממה שנבחר במסך גאן.</p>
       <div class="gbox" style="margin:10px 0">
         <div class="r"><span>מהשיא</span><span>כמה המחיר היום רחוק מהשיא של כל הזמנים</span></div>
         <div class="r"><span>הנפילה הגדולה</span><span>הירידה הכי עמוקה שהנכס עבר בהיסטוריה שיש לנו</span></div>
@@ -227,6 +230,8 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
         <div class="r"><span>תנודתיות</span><span>כמה המחיר קופץ בשנה רגילה; גבוה יותר = מסוכן יותר</span></div>
         <div class="r"><span>חצי השנה</span><span>האם המחיר מעל או מתחת לאמצע בין השפל לשיא של השנה האחרונה</span></div>
         <div class="r"><span>פסיכולוגיה</span><span>כמה פחד או התלהבות הניעו את הנפילה הגדולה</span></div>
+        <div class="r"><span>החצי של גאן</span><span>באיזה אחוז מהתיקונים בעבר המחיר נעצר מעל החצי, ואיפה הוא עומד עכשיו</span></div>
+        <div class="r"><span>רמת סיכון</span><span>סיכום של כל המדדים יחד, עם הסיבות במילים</span></div>
       </div>
       <div class="row"><button id="loadAllFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="riskNote"></span></div>
     </div>
@@ -724,8 +729,14 @@ function renderRisk(){
         if(x.above!=null) chips+=`<span class="chip">חצי השנה: <span class="${x.above?'up':'down'}">${x.above?'מעל':'מתחת'}</span></span>`;
       } else chips+='<span class="chip">ממתין לנתונים</span>';
       if(st.fall) chips+=`<span class="wt ${WCLASS[st.fall.w]||'wt1'}">פסיכולוגיה: ${st.fall.w}</span>`;
+      const legs=halfLegs(s.sym,parseFloat(S.halfMin)||0.2), hst=halfStats(legs), hs=halfNow(legs,s.sym);
+      if(hst.n) chips+=`<span class="chip">כיבד את החצי <b>${pc(hst.pHeld)}</b> (${hst.n} מקרים)</span>`;
+      if(hs) chips+=`<span class="chip">עכשיו: <span class="${hs.state==='above'?'up':'down'}">${hs.state==='above'?'מעל החצי':hs.state==='below'?'מתחת לחצי':'שבר את החצי'}</span></span>`;
+      let rk='';
+      if(x){ const r=riskFor(s.sym,x,hst,legs,hs);
+        rk=`<div class="risk r${r.lv}"><div class="lv">רמת סיכון: ${r.name}</div>${r.bad.map(t=>'<div>⚠️ '+t+'</div>').join('')}${r.good.map(t=>'<div>👍 '+t+'</div>').join('')}</div>`; }
       c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
-        <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>`;
+        <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>${rk}`;
       c.onclick=()=>openDetail(s.sym);
       g.appendChild(c);
     });
@@ -806,6 +817,27 @@ function nowState(legs,sym){
   if(last.outcome==='open') { const p=seriesFor(sym).slice(-1)[0][1]; return `עכשיו: בתיקון אחרי השיא של ${fd(last.H[0])}. החצי נמצא ב־<b dir="ltr">${fmt(last.mid)}</b>, והמחיר <b dir="ltr">${fmt(p)}</b> – ${p>=last.mid?'עדיין מעל החצי ✅':'מתחת לחצי ❌'}`; }
   if(last.outcome==='broke-open') return `עכשיו: שבר את החצי של העלייה שהסתיימה ב־${fd(last.H[0])} ועדיין לא חזר לשיא`;
   return '';
+}
+function halfNow(legs,sym){
+  const last=legs[legs.length-1]; if(!last) return null;
+  const v=seriesFor(sym); if(!v.length) return null; const p=v[v.length-1][1];
+  if(last.outcome==='open') return {state:p>=last.mid?'above':'below', mid:last.mid, hi:last.H[1], p};
+  if(last.outcome==='broke-open') return {state:'broken', mid:last.mid, hi:last.H[1], p};
+  return null;
+}
+function riskFor(sym,x,st,legs,hs){
+  let score=0; const bad=[], good=[];
+  if(x&&x.vol!=null){ if(x.vol>0.6){ score+=2; bad.push('תנודתי מאוד – קפיצות של '+Math.round(x.vol*100)+'% בשנה'); } else if(x.vol>0.35){ score+=1; bad.push('תנודתי'); } else good.push('תנודתיות נמוכה'); }
+  const w=(STORIES[sym]&&STORIES[sym].fall||{}).w;
+  if(w==='גבוה מאוד'){ score+=2; bad.push('בעבר נפל בעיקר מפחד והתלהבות – מושפע מאוד מרגשות'); } else if(w==='גבוה'){ score+=1; bad.push('בעבר הפסיכולוגיה השפיעה הרבה על הנפילה'); }
+  if(x&&x.above===false){ score+=1; bad.push('מתחת לאמצע של השנה האחרונה'); } else if(x&&x.above) good.push('מעל האמצע של השנה האחרונה');
+  if(hs){ if(hs.state==='broken'){ score+=2; bad.push('שבר את החצי של העלייה האחרונה ועוד לא חזר לשיא'); }
+    else if(hs.state==='below'){ score+=2; bad.push('בתיקון ונמצא מתחת לחצי ('+fmt(hs.mid)+')'); }
+    else good.push('בתיקון אבל מחזיק מעל החצי ('+fmt(hs.mid)+')'); }
+  if(st.n>=3){ if(st.pHeld<0.4){ score+=1; bad.push('בעבר שבר את החצי ברוב הפעמים ('+pc(1-st.pHeld)+')'); } else if(st.pHeld>=0.6){ score-=1; good.push('בעבר כיבד את החצי ב־'+pc(st.pHeld)+' מהמקרים'); } }
+  if(x&&x.mdd<0&&x.cur/x.mdd>0.6){ bad.push('כבר עמוק בירידה – קרוב לנפילה הגדולה שלו בעבר'); }
+  const lv=score>=4?2:score>=2?1:0;
+  return {lv, name:['נמוכה','בינונית','גבוהה'][lv], bad, good};
 }
 function renderGann(){
   const minRise=parseFloat($('halfMin').value)||0.2;
