@@ -135,6 +135,9 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .risk{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
 .risk.r0{background:#22c55e1a;border-right:3px solid #22c55e}.risk.r1{background:#eab3081a;border-right:3px solid #eab308}.risk.r2{background:#ef44441a;border-right:3px solid #ef4444}
 .risk .lv{font-weight:700;font-size:14px}
+.cmp{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px}.cmp .b{flex:1;height:8px;border-radius:4px;background:#2a3550;overflow:hidden}.cmp .b i{display:block;height:100%}
+.soon{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #2a355066;font-size:13px}
+.soon .d{white-space:nowrap;font-weight:700}
 </style>
 </head>
 <body>
@@ -189,10 +192,13 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">📐 ארבעת היסודות של גאן</h2><button id="gannBack">→ חזרה</button></div>
       <div class="tabs" id="gannTabs">
         <button data-t="half" class="on">1. החצי</button>
-        <button data-t="time" disabled>2. מחזורי זמן · בקרוב</button>
+        <button data-t="time">2. מחזורי זמן</button>
         <button data-t="son" disabled>3. ריבוע התשע · בקרוב</button>
         <button data-t="angles" disabled>4. זוויות · בקרוב</button>
       </div>
+    </div>
+    <div id="tabHalf">
+    <div class="panel">
       <div class="insight" style="margin-top:12px">
         <b>הכלל:</b> אחרי עלייה גדולה, המחיר נוטה לתקן עד בערך חצי מהדרך שעשה, ושם להיעצר ולחזור לעלות.
         <br><b>איך בדקתי:</b> מצאתי בכל נכס כל עלייה גדולה – מהשפל לשיא, לפחות בגודל שבחרת למטה – שאחריה הגיע תיקון של לפחות רבע מהעלייה. אחר כך בדקתי מה קרה עד שהמחיר שבר את השיא:
@@ -208,6 +214,22 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel"><h3 style="margin-top:0">✅ כיבדו את החצי ברוב הפעמים</h3><div id="halfGood"></div></div>
     <div class="panel"><h3 style="margin-top:0">❌ לא כיבדו את החצי ברוב הפעמים</h3><div id="halfBad"></div></div>
     <div class="panel"><h3 style="margin-top:0">⏳ מעט מדי מקרים כדי לקבוע</h3><div id="halfFew"></div></div>
+    </div>
+    <div id="tabTime" class="hidden">
+    <div class="panel">
+      <div class="insight">
+        <b>הכלל:</b> אחרי שיא או שפל חשוב, נקודות המפנה הבאות נוטות להגיע אחרי מספר קבוע של ימים – לפי חלוקת המעגל: 30, 45, 60, 90, 120, 180, 270, 360 יום, ועד מחזורים של 7 ו־10 שנים.
+        <br><b>איך בדקתי:</b> מצאתי בכל נכס את נקודות המפנה הגדולות – שיא או שפל שאחריו המחיר הסתובב לפחות בגודל שבחרת למטה. לכל נקודת מפנה מדדתי כמה ימים עברו משלוש נקודות המפנה שלפניה, ובדקתי אם אחד המרחקים נפל קרוב למספר של גאן.
+        <br>🎲 <b>ההשוואה למקרה:</b> כדי לדעת אם זה באמת משהו, הרצתי את אותה בדיקה גם עם מאה סדרות של מספרים "מזויפים" – קצת גדולים או קטנים מהמספרים של גאן. אם המספרים של גאן תופסים הרבה יותר נקודות מפנה מהמזויפים, יש פה משהו. אם בערך אותו דבר – זה מקרה.
+      </div>
+      <div class="row" style="margin-top:12px"><span>גודל נקודת מפנה:</span>
+        <select id="timeMin"><option value="0.1">10%</option><option value="0.15">15%</option><option value="0.2">20%</option><option value="0.3">30%</option></select>
+        <button id="timeLoadFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="timeNote"></span></div>
+    </div>
+    <div class="panel" id="timeSummary"></div>
+    <div class="panel"><h3 style="margin-top:0">📅 תאריכים קרובים לשים לב אליהם</h3><p class="hint">המחזורים העיקריים של גאן – רבע, חצי, שלושה רבעים ושנה שלמה, וכפולות של שנה – בחודשיים הקרובים, מנקודות המפנה האחרונות של כל נכס. הם לא אומרים לאן המחיר ילך – רק מתי לשים לב.</p><div id="timeSoon"></div></div>
+    <div class="panel"><h3 style="margin-top:0">🔍 כל נכס לחוד</h3><div id="timeAssets"></div></div>
+    </div>
   </section>
 
   <section id="trend" class="hidden">
@@ -749,7 +771,7 @@ $('loadAllFull').onclick=async()=>{
   if(loadingAll) return; loadingAll=true;
   const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2));
   const upd=()=>VIEWS.forEach(v=>{ if(!$(v).classList.contains('hidden')) RENDER[v](); });
-  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; }
+  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; $('timeNote').textContent=msg; }
   loadingAll=false; upd();
 };
 
@@ -841,6 +863,9 @@ function riskFor(sym,x,st,legs,hs){
   return {lv, name:['נמוכה','בינונית','גבוהה'][lv], bad, good};
 }
 function renderGann(){
+  [...$('gannTabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===gannTab));
+  $('tabHalf').classList.toggle('hidden',gannTab!=='half'); $('tabTime').classList.toggle('hidden',gannTab!=='time');
+  if(gannTab==='time'){ renderTime(); return; }
   const minRise=parseFloat($('halfMin').value)||0.2;
   const all=[], rowsGood=[], rowsBad=[], rowsFew=[];
   S.symbols.forEach((s,idx)=>{
@@ -884,6 +909,96 @@ function renderGann(){
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('halfNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים. עם היסטוריה מלאה יהיו הרבה יותר מקרים.'):'הבדיקה רצה על כל ההיסטוריה.';
 }
+
+/* ---------- Gann foundation 2: time cycles ---------- */
+const GANN_DAYS=[30,45,60,90,120,135,180,225,240,270,315,360,450,540,720,1080,1440,1800,2520,3600];
+const tolOf=N=>Math.max(4,Math.round(N*0.03));
+function zigzag(v,T){
+  const piv=[]; if(v.length<3) return piv;
+  let dir=0, hiI=0, loI=0;
+  for(let i=1;i<v.length;i++){ const p=v[i][1];
+    if(dir===0){ if(p>v[hiI][1]) hiI=i; if(p<v[loI][1]) loI=i;
+      if(p>=v[loI][1]*(1+T) && loI<i){ piv.push({i:loI,t:'L'}); dir=1; hiI=i; }
+      else if(p<=v[hiI][1]*(1-T) && hiI<i){ piv.push({i:hiI,t:'H'}); dir=-1; loI=i; } }
+    else if(dir===1){ if(p>v[hiI][1]) hiI=i; else if(p<=v[hiI][1]*(1-T)){ piv.push({i:hiI,t:'H'}); dir=-1; loI=i; } }
+    else { if(p<v[loI][1]) loI=i; else if(p>=v[loI][1]*(1+T)){ piv.push({i:loI,t:'L'}); dir=1; hiI=i; } }
+  }
+  return piv.map(x=>({d:v[x.i][0], p:v[x.i][1], t:x.t, ms:new Date(v[x.i][0]+'T12:00:00').getTime()}));
+}
+function hasNear(sorted,target,tol){ let lo=0,hi=sorted.length-1; while(lo<=hi){ const m=(lo+hi)>>1; if(sorted[m]<target-tol) lo=m+1; else if(sorted[m]>target+tol) hi=m-1; else return true; } return false; }
+function rng(seed){ return ()=>{ seed=(seed*1664525+1013904223)%4294967296; return seed/4294967296; }; }
+const FAKE=(()=>{ const r=rng(12345), f=[]; while(f.length<100){ const x=0.8+r()*0.45; if(x<0.93||x>1.07) f.push(x); } return f; })();
+function cycleCounts(piv,mult){
+  // for every turning point: is its distance from one of the 3 turning points before it close to a cycle number?
+  let n=0, hits=0; const perN=GANN_DAYS.map(()=>0);
+  for(let k=1;k<piv.length;k++){
+    const ds=[]; for(let j=k-1;j>=Math.max(0,k-3);j--){ ds.push(Math.round((piv[k].ms-piv[j].ms)/864e5)); }
+    if(!ds.length) continue; ds.sort((a,b)=>a-b); n++; let any=false;
+    GANN_DAYS.forEach((N,ix)=>{ const t=N*mult; if(hasNear(ds,t,tolOf(t))){ any=true; perN[ix]++; } });
+    if(any) hits++;
+  }
+  return {n,hits,perN};
+}
+let timeCache={key:'',res:null};
+function timeAnalysis(T){
+  const key=T+'|'+S.symbols.map(s=>s.sym+':'+((S.hist[s.sym]||{}).date||'')+':'+(((S.full[s.sym]||{}).values||[]).length)).join(',');
+  if(timeCache.key===key) return timeCache.res;
+  const per={}; let pool={n:0,hits:0,perN:GANN_DAYS.map(()=>0)}; const poolFake=FAKE.map(()=>({hits:0,perN:GANN_DAYS.map(()=>0)}));
+  S.symbols.forEach(s=>{
+    const piv=zigzag(seriesFor(s.sym),T); const a=cycleCounts(piv,1);
+    const fk=FAKE.map((f,fi)=>{ const c=cycleCounts(piv,f); poolFake[fi].hits+=c.hits; c.perN.forEach((x,ix)=>poolFake[fi].perN[ix]+=x); return c.hits; });
+    const base=fk.reduce((x,y)=>x+y,0)/fk.length;
+    const pv=(fk.filter(h=>h>=a.hits).length)/fk.length;
+    per[s.sym]={piv,n:a.n,hits:a.hits,base,pv};
+    pool.n+=a.n; pool.hits+=a.hits; a.perN.forEach((x,ix)=>pool.perN[ix]+=x);
+  });
+  const fh=poolFake.map(x=>x.hits); const pbase=fh.reduce((x,y)=>x+y,0)/fh.length; const ppv=fh.filter(h=>h>=pool.hits).length/fh.length;
+  const perNbase=GANN_DAYS.map((_,ix)=>poolFake.reduce((a,x)=>a+x.perN[ix],0)/poolFake.length);
+  const res={per,pool,pbase,ppv,perNbase};
+  timeCache={key,res}; return res;
+}
+function verdict(pv,n){ if(n<10) return ['מעט מדי נקודות מפנה','wt1']; if(pv<=0.1) return ['יותר ממקרה','wt0']; if(pv>=0.9) return ['פחות ממקרה','wt3']; return ['בערך כמו מקרה','wt1']; }
+function renderTime(){
+  const T=parseFloat($('timeMin').value)||0.15; const R=timeAnalysis(T); const P=R.pool;
+  const hr=P.n?P.hits/P.n:null, br=P.n?R.pbase/P.n:null;
+  const [vt]=verdict(R.ppv,P.n);
+  const line=P.n<10?'אין עדיין מספיק נקודות מפנה כדי לקבוע.':R.ppv<=0.1?'המספרים של גאן תפסו יותר נקודות מפנה ממה שמספרים אקראיים תופסים – יש כאן סימן שהמחזורים עובדים.':R.ppv>=0.9?'המספרים של גאן תפסו פחות נקודות מפנה ממספרים אקראיים – בנתונים האלה המחזורים לא עבדו.':'המספרים של גאן תפסו בערך כמו מספרים אקראיים – כלומר רוב "הפגיעות" הן כנראה מקרה, כי עם הרבה תאריכים תמיד משהו נופל קרוב.';
+  const ratios=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix],r:R.perNbase[ix]?P.perN[ix]/R.perNbase[ix]:0})).filter(x=>x.b>=3).sort((x,y)=>y.r-x.r);
+  const top=ratios.slice(0,5), bottom=ratios.slice(-3).reverse();
+  const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
+  $('timeSummary').innerHTML=`<h3 style="margin-top:0">📊 מה יצא בכל הנכסים יחד</h3>
+    <div class="sumgrid">
+      <div class="gbox"><div class="big">${P.n}</div><div class="hint">נקודות מפנה שנבדקו</div></div>
+      <div class="gbox"><div class="big">${pc(hr)}</div><div class="hint">נפלו קרוב לתאריך של גאן</div></div>
+      <div class="gbox"><div class="big">${pc(br)}</div><div class="hint">היו נופלות קרוב גם במקרה</div></div>
+    </div>
+    <div class="insight" style="margin-top:10px"><b>בשורה התחתונה:</b> ${line}</div>
+    ${top.length?`<h4>המחזורים שעבדו הכי טוב יחסית למקרה</h4>${top.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)} · <b>${x.r>=1?'פי '+x.r.toFixed(1):'פחות מהמקרה'}</b></span></div>`).join('')}`:''}
+    ${bottom.length?`<h4>והחלשים ביותר</h4>${bottom.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)}</span></div>`).join('')}`:''}
+    <p class="hint">"פגיעה" היא נקודת מפנה שהגיעה עד כמה ימים מתאריך של גאן (במחזור של שנה – עד אחד עשר יום). שים לב: עם הרבה מספרים והרבה נקודות קודמות, הרבה נקודות מפנה "פוגעות" גם סתם – לכן ההשוואה למקרה היא החלק החשוב.</p>`;
+  // upcoming dates
+  const t0=today(), t1=addDays(t0,60), soon=[]; const MAIN=[90,180,270,360,720,1080,1440,1800,2520,3600];
+  S.symbols.forEach((s,idx)=>{ const r=R.per[s.sym]; if(!r||!r.piv.length) return; const L=look(s.sym,idx);
+    r.piv.slice(-3).forEach(pv=>MAIN.forEach(N=>{ const d=addDays(pv.d,N); if(d>=t0&&d<=t1) soon.push({d,s,L,N,pv}); })); });
+  soon.sort((a,b)=>a.d<b.d?-1:1);
+  $('timeSoon').innerHTML=soon.length?soon.map((x,ii)=>{ const days=Math.round((new Date(x.d)-new Date(t0))/864e5);
+    return `<div class="soon${ii>=12?' more hidden':''}"><span class="d">${fd(x.d)}<div class="hint" style="font-weight:400">${days===0?'היום':'בעוד '+days+' ימים'}</div></span><span>${x.L.i} ${esc(x.s.name)} · ${nm(x.N)} מה${x.pv.t==='H'?'שיא':'שפל'} של ${fd(x.pv.d)} (${fmt(x.pv.p)})</span></div>`; }).join('')+(soon.length>12?`<button id="soonMore" style="margin-top:8px">הצג עוד ${soon.length-12}</button>`:''):'<p class="hint">אין תאריכים בחודשיים הקרובים, או שעדיין אין מספיק נתונים.</p>';
+  if($('soonMore')) $('soonMore').onclick=()=>{ document.querySelectorAll('#timeSoon .more').forEach(x=>x.classList.remove('hidden')); $('soonMore').remove(); };
+  // per asset
+  const rows=S.symbols.map((s,idx)=>({s,idx,r:R.per[s.sym]})).filter(x=>x.r).sort((a,b)=>((b.r.n?b.r.hits/b.r.n:0)-(b.r.n?b.r.base/b.r.n:0))-((a.r.n?a.r.hits/a.r.n:0)-(a.r.n?a.r.base/a.r.n:0)));
+  $('timeAssets').innerHTML=rows.map(({s,idx,r})=>{ const L=look(s.sym,idx); const [vv,cls]=verdict(r.pv,r.n); const a=r.n?r.hits/r.n:0, b=r.n?r.base/r.n:0;
+    return `<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span class="wt ${cls}">${vv}</span></div>
+      <div class="hint">${r.n} נקודות מפנה</div>
+      <div class="cmp"><span style="width:70px">גאן</span><div class="b"><i style="width:${Math.round(a*100)}%;background:#60a5fa"></i></div><b>${pc(a)}</b></div>
+      <div class="cmp"><span style="width:70px">מקרה</span><div class="b"><i style="width:${Math.round(b*100)}%;background:#8b96ad"></i></div><b>${pc(b)}</b></div></div>`; }).join('');
+  const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
+  $('timeNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים.'):'הבדיקה רצה על כל ההיסטוריה.';
+}
+let gannTab='half';
+$('gannTabs').onclick=e=>{ const t=e.target.dataset&&e.target.dataset.t; if(!t||e.target.disabled) return; gannTab=t; S.gannTab=t; save(); renderGann(); };
+$('timeMin').onchange=()=>{ S.timeMin=$('timeMin').value; save(); renderGann(); };
+$('timeLoadFull').onclick=()=>$('loadAllFull').onclick();
+
 $('halfMin').onchange=()=>{ S.halfMin=$('halfMin').value; save(); renderGann(); };
 $('halfLoadFull').onclick=()=>$('loadAllFull').onclick();
 
@@ -1088,6 +1203,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiK
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
 if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
+$('timeMin').value=S.timeMin||'0.15'; gannTab=S.gannTab||'half';
 renderGrid();
 initCache().then(()=>{
   renderGrid();
