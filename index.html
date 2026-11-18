@@ -123,6 +123,15 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .ttable .num{direction:ltr;unicode-bidi:isolate;text-align:left;white-space:nowrap}
 .str{display:inline-block;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
 .str.s{background:#22c55e33;color:#86efac}.str.m{background:#60a5fa33;color:#bfdbfe}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.tabs button.on{background:var(--acc);color:#0b1220;border-color:var(--acc);font-weight:700}
+.tabs button:disabled{opacity:.5;cursor:default}
+.big{font-size:28px;font-weight:700;direction:ltr;unicode-bidi:isolate}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sumgrid .gbox{text-align:center}
+.legs{display:none;margin-top:8px}.open .legs{display:block}
+.leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
+.bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
 </style>
 </head>
 <body>
@@ -130,6 +139,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <h1>מעקב המניות שלי</h1>
   <div class="status" id="status">טוען…</div>
   <div class="row">
+    <button id="gannBtn">📐 גאן</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
     <button id="refreshBtn">רענן עכשיו</button>
     <button id="settingsBtn">הגדרות</button>
@@ -169,6 +179,32 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="home">
     <div class="grid" id="grid"></div>
     <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
+  </section>
+
+  <section id="gann" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📐 ארבעת היסודות של גאן</h2><button id="gannBack">→ חזרה</button></div>
+      <div class="tabs" id="gannTabs">
+        <button data-t="half" class="on">1. החצי</button>
+        <button data-t="time" disabled>2. מחזורי זמן · בקרוב</button>
+        <button data-t="son" disabled>3. ריבוע התשע · בקרוב</button>
+        <button data-t="angles" disabled>4. זוויות · בקרוב</button>
+      </div>
+      <div class="insight" style="margin-top:12px">
+        <b>הכלל:</b> אחרי עלייה גדולה, המחיר נוטה לתקן עד בערך חצי מהדרך שעשה, ושם להיעצר ולחזור לעלות.
+        <br><b>איך בדקתי:</b> מצאתי בכל נכס כל עלייה גדולה – מהשפל לשיא, לפחות בגודל שבחרת למטה – שאחריה הגיע תיקון של לפחות רבע מהעלייה. אחר כך בדקתי מה קרה עד שהמחיר שבר את השיא:
+        <br>✅ <b>כיבד את החצי</b> – התיקון נעצר מעל החצי, והמחיר עלה לשיא חדש.
+        <br>❌ <b>שבר את החצי</b> – המחיר ירד מתחת לחצי. ואז בדקתי אם בסוף הוא בכל זאת חזר לשיא חדש.
+        <br>📏 בנוסף בדקתי את הכלל השני: האם המחיר נשאר מעל חצי ממחיר השיא עצמו.
+      </div>
+      <div class="row" style="margin-top:12px"><span>גודל עלייה מינימלי:</span>
+        <select id="halfMin"><option value="0.15">15%</option><option value="0.2">20%</option><option value="0.3">30%</option><option value="0.5">50%</option></select>
+        <button id="halfLoadFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="halfNote"></span></div>
+    </div>
+    <div class="panel" id="halfSummary"></div>
+    <div class="panel"><h3 style="margin-top:0">✅ כיבדו את החצי ברוב הפעמים</h3><div id="halfGood"></div></div>
+    <div class="panel"><h3 style="margin-top:0">❌ לא כיבדו את החצי ברוב הפעמים</h3><div id="halfBad"></div></div>
+    <div class="panel"><h3 style="margin-top:0">⏳ מעט מדי מקרים כדי לקבוע</h3><div id="halfFew"></div></div>
   </section>
 
   <section id="trend" class="hidden">
@@ -670,8 +706,6 @@ function renderStory(){
   $('storyPanel').innerHTML=h;
   $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x));
 }
-function showRisk(){ if(cur){ cur=null; $('detail').classList.add('hidden'); history.replaceState({layer:'risk'},''); } else history.pushState({layer:'risk'},''); $('settings').classList.add('hidden'); $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); window.scrollTo(0,0); renderRisk(); }
-function closeRisk(){ $('risk').classList.add('hidden'); $('home').classList.remove('hidden'); }
 function renderRisk(){
   const g=$('riskGrid'); g.innerHTML='';
   const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
@@ -692,22 +726,20 @@ function renderRisk(){
       if(st.fall) chips+=`<span class="wt ${WCLASS[st.fall.w]||'wt1'}">פסיכולוגיה: ${st.fall.w}</span>`;
       c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
         <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>`;
-      c.onclick=()=>{ $('risk').classList.add('hidden'); openDetail(s.sym); };
+      c.onclick=()=>openDetail(s.sym);
       g.appendChild(c);
     });
   });
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('riskNote').textContent=missing?('ל־'+missing+' נכסים עדיין אין היסטוריה מלאה, ולכן הנפילה הגדולה אצלם מחושבת רק על השנים האחרונות.'):'יש היסטוריה מלאה לכל הנכסים.';
 }
-let wantRisk=false;
-$('riskBtn').onclick=()=>{ wantRisk=true; history.back(); };
-$('riskBack').onclick=()=>history.back();
 let loadingAll=false;
 $('loadAllFull').onclick=async()=>{
   if(loadingAll) return; loadingAll=true;
   const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2));
-  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; $('riskNote').textContent='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; if(!$('risk').classList.contains('hidden')) renderRisk(); }
-  loadingAll=false; if(!$('risk').classList.contains('hidden')) renderRisk();
+  const upd=()=>VIEWS.forEach(v=>{ if(!$(v).classList.contains('hidden')) RENDER[v](); });
+  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; }
+  loadingAll=false; upd();
 };
 
 
@@ -723,8 +755,6 @@ function trendFor(sym){
   const ch6=last[1]/p6-1, ch1=last[1]/p1-1;
   return {ch6, ch1, avg, above:last[1]>avg, up:ch6>0&&last[1]>avg, strong:ch6>0.2, price:last[1]};
 }
-function showTrend(){ history.pushState({layer:'trend'},''); $('home').classList.add('hidden'); $('trend').classList.remove('hidden'); window.scrollTo(0,0); renderTrend(); }
-function closeTrend(){ $('trend').classList.add('hidden'); $('home').classList.remove('hidden'); }
 function renderTrend(){
   const rows=[], others=[], wait=[];
   S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); if(!t) wait.push(s.name); else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
@@ -732,34 +762,129 @@ function renderTrend(){
   if(!rows.length){ $('trendTable').innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
   else $('trendTable').innerHTML=`<table class="ttable"><tr><th>נכס</th><th>חצי שנה</th><th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
     return `<tr class="rw" data-sym="${esc(s.sym)}"><td>${L.i} ${esc(s.name)}<div class="tk">${esc(s.sym)}</div></td><td class="num up">${pct(t.ch6*100)}</td><td class="num ${t.ch1>=0?'up':'down'}">${pct(t.ch1*100)}</td><td><span class="str ${t.strong?'s':'m'}">${t.strong?'חזקה':'מתונה'}</span></td></tr>`; }).join('')}</table>`;
-  $('trendTable').querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>{ $('trend').classList.add('hidden'); openDetail(tr.dataset.sym); });
+  $('trendTable').querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>openDetail(tr.dataset.sym));
   $('trendOthers').textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'.':'');
 }
-$('trendBtn').onclick=()=>{ if($('trend').classList.contains('hidden')){ if(cur||!$('risk').classList.contains('hidden')||!$('settings').classList.contains('hidden')){ wantTrend=true; history.back(); } else showTrend(); } };
-$('trendBack').onclick=()=>history.back();
-let wantTrend=false;
+
+/* ---------- Gann foundation 1: the half ---------- */
+function halfLegs(sym,minRise){
+  const v=seriesFor(sym); const n=v.length; const legs=[]; if(n<20) return legs;
+  let i=0, L=0;
+  while(i<n){
+    // look for an up-move of at least minRise from the running low, then a pullback of a quarter of it
+    let H=-1, confirmed=-1;
+    for(let k=L+1;k<n;k++){
+      if(H<0){ if(v[k][1]<v[L][1]){ L=k; continue; } if(v[k][1]>=v[L][1]*(1+minRise)) H=k; else continue; }
+      if(v[k][1]>v[H][1]) H=k;
+      if(v[k][1] <= v[H][1]-0.25*(v[H][1]-v[L][1])){ confirmed=k; break; }
+    }
+    if(confirmed<0) break;
+    const lo=v[L][1], hi=v[H][1], mid=lo+(hi-lo)/2;
+    let m=confirmed, brk=-1;
+    for(let k=confirmed;k<n;k++){ if(v[k][1]>hi){ brk=k; break; } if(v[k][1]<v[m][1]) m=k; }
+    const held=v[m][1]>=mid, heldHalfPrice=v[m][1]>=hi/2;
+    let outcome;
+    if(brk>=0) outcome=held?'held':'broke-recovered';
+    else outcome=held?'open':'broke-open';
+    legs.push({L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null});
+    if(brk<0) break;
+    L=m; i=brk;
+  }
+  return legs;
+}
+function halfStats(legs){
+  const done=legs.filter(l=>l.outcome!=='open');
+  const held=done.filter(l=>l.outcome==='held').length;
+  const broke=done.filter(l=>l.outcome!=='held');
+  const rec=broke.filter(l=>l.outcome==='broke-recovered').length;
+  const hp=done.filter(l=>l.heldHalfPrice).length;
+  return {n:done.length, held, broke:broke.length, rec, brokeOpen:broke.length-rec, hp, pHeld:done.length?held/done.length:null, pRec:broke.length?rec/broke.length:null, pHP:done.length?hp/done.length:null};
+}
+const pc=x=>x==null?'—':Math.round(x*100)+'%';
+function nowState(legs,sym){
+  const last=legs[legs.length-1]; if(!last) return '';
+  if(last.outcome==='open') { const p=seriesFor(sym).slice(-1)[0][1]; return `עכשיו: בתיקון אחרי השיא של ${fd(last.H[0])}. החצי נמצא ב־<b dir="ltr">${fmt(last.mid)}</b>, והמחיר <b dir="ltr">${fmt(p)}</b> – ${p>=last.mid?'עדיין מעל החצי ✅':'מתחת לחצי ❌'}`; }
+  if(last.outcome==='broke-open') return `עכשיו: שבר את החצי של העלייה שהסתיימה ב־${fd(last.H[0])} ועדיין לא חזר לשיא`;
+  return '';
+}
+function renderGann(){
+  const minRise=parseFloat($('halfMin').value)||0.2;
+  const all=[], rowsGood=[], rowsBad=[], rowsFew=[];
+  S.symbols.forEach((s,idx)=>{
+    const legs=halfLegs(s.sym,minRise), st=halfStats(legs); legs.forEach(l=>all.push(l));
+    const L=look(s.sym,idx);
+    const legsHtml=legs.map(l=>`<div class="leg">${l.outcome==='held'?'✅':l.outcome==='open'?'⏳':'❌'} עלייה מ־<b dir="ltr">${fmt(l.L[1])}</b> (${fd(l.L[0])}) ל־<b dir="ltr">${fmt(l.H[1])}</b> (${fd(l.H[0])}) · התיקון הגיע ל־<b dir="ltr">${fmt(l.m[1])}</b>, ${Math.round(l.depth*100)}% מהעלייה${l.outcome==='broke-recovered'?` · חזר לשיא אחרי ${l.days} ימים`:l.outcome==='broke-open'?' · עוד לא חזר לשיא':l.outcome==='open'?' · התיקון עדיין נמשך':''}</div>`).join('');
+    const html=`<div class="gbox" style="margin-bottom:8px;cursor:pointer" data-sym="${esc(s.sym)}">
+      <div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span>${st.n} מקרים</span></div>
+      ${st.n?`<div class="r"><span>כיבד את החצי</span><b>${pc(st.pHeld)}</b></div><div class="bar"><i style="width:${Math.round((st.pHeld||0)*100)}%"></i></div>
+      <div class="r"><span>כששבר – כבר חזר לשיא חדש</span><b>${st.broke?pc(st.pRec)+' ('+st.rec+' מתוך '+st.broke+')':'—'}</b></div>
+      <div class="r"><span>נשאר מעל חצי ממחיר השיא</span><b>${pc(st.pHP)}</b></div>`:''}
+      ${nowState(legs,s.sym)?`<div class="hint" style="margin-top:6px">${nowState(legs,s.sym)}</div>`:''}
+      <div class="legs">${legsHtml||'<div class="hint">לא נמצאו עליות שעומדות בתנאי.</div>'}</div>
+      <div class="hint" style="margin-top:4px">לחיצה מציגה את כל המקרים</div></div>`;
+    if(st.n<3) rowsFew.push([st,html]); else if(st.pHeld>=0.5) rowsGood.push([st,html]); else rowsBad.push([st,html]);
+  });
+  rowsGood.sort((a,b)=>b[0].pHeld-a[0].pHeld); rowsBad.sort((a,b)=>b[0].pHeld-a[0].pHeld);
+  $('halfGood').innerHTML=rowsGood.map(x=>x[1]).join('')||'<p class="hint">אין</p>';
+  $('halfBad').innerHTML=rowsBad.map(x=>x[1]).join('')||'<p class="hint">אין</p>';
+  $('halfFew').innerHTML=rowsFew.map(x=>x[1]).join('')||'<p class="hint">אין</p>';
+  document.querySelectorAll('#gann .gbox[data-sym]').forEach(b=>b.onclick=()=>b.classList.toggle('open'));
+  const t=halfStats(all);
+  $('halfSummary').innerHTML=`<h3 style="margin-top:0">📊 ההסתברויות בכל הנכסים יחד</h3>
+    <div class="sumgrid">
+      <div class="gbox"><div class="big">${t.n}</div><div class="hint">עליות גדולות שנבדקו</div></div>
+      <div class="gbox"><div class="big up">${pc(t.pHeld)}</div><div class="hint">כיבדו את החצי וחזרו לשיא</div></div>
+      <div class="gbox"><div class="big down">${pc(t.n?t.broke/t.n:null)}</div><div class="hint">שברו את החצי</div></div>
+      <div class="gbox"><div class="big">${pc(t.pRec)}</div><div class="hint">מאלה ששברו – כבר חזרו לשיא חדש</div></div>
+      <div class="gbox"><div class="big">${pc(t.pHP)}</div><div class="hint">נשארו מעל חצי ממחיר השיא</div></div>
+    </div>
+    <p class="hint">ההסתברות היא פשוט כמה פעמים זה קרה בעבר מתוך כל המקרים. זה לא מבטיח מה יקרה בפעם הבאה, ובנכס עם מעט מקרים המספר פחות אמין. תיקונים שעדיין נמשכים לא נספרו.</p>`;
+  const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
+  $('halfNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים. עם היסטוריה מלאה יהיו הרבה יותר מקרים.'):'הבדיקה רצה על כל ההיסטוריה.';
+}
+$('halfMin').onchange=()=>{ S.halfMin=$('halfMin').value; save(); renderGann(); };
+$('halfLoadFull').onclick=()=>$('loadAllFull').onclick();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-function openDetail(sym){
-  if(!cur) history.pushState({layer:'detail'},'');
-  cur=sym; $('home').classList.add('hidden'); $('detail').classList.remove('hidden'); window.scrollTo(0,0);
-  loadHistory(sym).then(renderDetail).catch(()=>{});
+const VIEWS=['trend','risk','gann'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann()};
+let pendingView=null;
+function openView(v){
+  if(!$('noteModal').classList.contains('hidden')) return;
+  if(!$('settings').classList.contains('hidden')){ pendingView=v; history.back(); return; }
+  if(!$(v).classList.contains('hidden')) return;
+  const onTop=cur||VIEWS.some(x=>!$(x).classList.contains('hidden'));
+  if(onTop) history.replaceState({layer:v},''); else history.pushState({layer:v},'');
+  applyState({layer:v}); window.scrollTo(0,0);
+}
+function showDetail(sym){
+  cur=sym; VIEWS.forEach(v=>$(v).classList.add('hidden')); $('home').classList.add('hidden'); $('detail').classList.remove('hidden'); window.scrollTo(0,0);
+  loadHistory(sym).then(()=>{ if(cur===sym) renderDetail(); }).catch(()=>{});
   renderDetail();
 }
-function closeDetail(){ cur=null; $('detail').classList.add('hidden'); $('home').classList.remove('hidden'); renderGrid(); }
+function openDetail(sym){
+  if(cur) history.replaceState({layer:'detail',sym},''); else history.pushState({layer:'detail',sym},'');
+  showDetail(sym);
+}
+function applyState(st){
+  const ly=st&&st.layer;
+  VIEWS.forEach(v=>$(v).classList.add('hidden'));
+  if(ly==='detail'&&st.sym&&S.symbols.find(x=>x.sym===st.sym)){ showDetail(st.sym); return; }
+  cur=null; $('detail').classList.add('hidden');
+  if(VIEWS.includes(ly)){ $('home').classList.add('hidden'); $(ly).classList.remove('hidden'); RENDER[ly](); }
+  else { $('home').classList.remove('hidden'); renderGrid(); }
+}
+$('riskBtn').onclick=()=>openView('risk');
+$('trendBtn').onclick=()=>openView('trend');
+$('gannBtn').onclick=()=>openView('gann');
+['riskBack','trendBack','gannBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
   if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
-  if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); if(wantRisk){ wantRisk=false; showRisk(); } else if(wantTrend){ wantTrend=false; showTrend(); } return; }
-  if(cur){ closeDetail(); const ly=history.state&&history.state.layer;
-    if(ly==='risk'){ $('home').classList.add('hidden'); $('risk').classList.remove('hidden'); renderRisk(); }
-    else if(ly==='trend'){ $('home').classList.add('hidden'); $('trend').classList.remove('hidden'); renderTrend(); }
-    else if(wantTrend){ wantTrend=false; showTrend(); }
-    return; }
-  if(!$('risk').classList.contains('hidden')){ closeRisk(); if(wantTrend){ wantTrend=false; showTrend(); } return; }
-  if(!$('trend').classList.contains('hidden')){ closeTrend(); return; }
+  if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); if(pendingView){ const v=pendingView; pendingView=null; openView(v); } return; }
+  applyState(history.state);
 });
 $('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
   if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
@@ -920,6 +1045,7 @@ function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(!documen
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); } });
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
+if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
 renderGrid();
 initCache().then(()=>{
   renderGrid();
