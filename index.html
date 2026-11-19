@@ -1056,7 +1056,7 @@ function alertItemHtml(x){
 }
 function statusTxt(){
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
-  if(ALERT.status==='wait') return 'עדיין אין מספיק נתונים כדי לבדוק אילו מחזורים עובדים. כדאי לטעון היסטוריה מלאה – בכפתור שבמסך גאן.';
+  if(ALERT.status==='wait') return 'עדיין אין מספיק נתונים כדי לבדוק אילו מחזורים עובדים. צריך לטעון פעם אחת את ההיסטוריה המלאה – בכפתור כאן למטה.';
   if(ALERT.status==='novalid') return 'בנתונים שלך אף מחזור זמן לא תפס נקודות מפנה יותר ממקרה, ולכן אין כרגע תזכורות.';
   if(ALERT.status==='none') return 'אין כרגע מניות בנקודת גאן. המחזורים שנמצאו טובים ממקרה: '+ALERT.valid.map(nm).join(', ')+'.';
   return '';
@@ -1078,9 +1078,9 @@ function renderAlert(){
   else {
     const names=Object.keys(hot).map(sym=>{ const x=S.symbols.find(z=>z.sym===sym); return x?x.name:sym; });
     box.innerHTML=`<div class="row" style="justify-content:space-between"><b>⏰ נקודות גאן</b><button id="alertHide">הסתר להיום</button></div>
-      <div style="margin-top:6px">${n?`<b>${n} ${n===1?'מניה הגיעה':'מניות הגיעו'} לנקודת גאן:</b> ${names.map(esc).join(', ')}. <span class="hint">לחץ כאן לפרטים ולכיוון הצפוי.</span>`:`<span class="hint">${statusTxt()}</span>`}</div>`;
+      <div style="margin-top:6px">${n?`<b>${n} ${n===1?'מניה הגיעה':'מניות הגיעו'} לנקודת גאן:</b> ${names.map(esc).join(', ')}. <span class="hint">לחץ כאן לפרטים ולכיוון הצפוי.</span>`:`<span class="hint">${statusTxt()}</span>${ALERT.status==='wait'?' <button id="alertLoad" class="pri" style="margin-top:6px">טען עכשיו את ההיסטוריה המלאה</button>':''}`}</div>`;
     box.classList.remove('hidden'); box.classList.toggle('blink',n>0);
-    box.onclick=e=>{ if(e.target.id==='alertHide'){ S.alertHidden=today(); save(); box.classList.add('hidden'); return; } openView('alerts'); };
+    box.onclick=e=>{ if(e.target.id==='alertLoad'){ e.target.textContent='טוען… בערך ארבע דקות, אפשר להמשיך להשתמש'; e.target.disabled=true; $('loadAllFull').onclick(); return; } if(e.target.id==='alertHide'){ S.alertHidden=today(); save(); box.classList.add('hidden'); return; } openView('alerts'); };
   }
   if(!$('alerts').classList.contains('hidden')) renderAlertsView();
 }
