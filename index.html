@@ -145,7 +145,8 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #f59e0b00}50%{box-shadow:0 0 0 5px #f59e0bAA;border-color:#f59e0b}}
 .blink{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b!important}
 .card.gannhot{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b}
-.hotb{display:inline-block;background:#f59e0b;color:#111;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-top:6px}
+.hotb{display:table;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-top:5px}
+.hotb.hup{background:#22c55e;color:#062}.hotb.hdown{background:#ef4444;color:#fff}
 .cnt{display:inline-block;background:#f59e0b;color:#111;border-radius:10px;padding:0 7px;font-weight:700;margin-right:4px}
 #gannAlert{cursor:pointer}
 </style>
@@ -594,7 +595,6 @@ function renderGrid(){
     const cls=q.pct>=0?'up':'down';
     c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
       <div class="desc">${descOf(s.sym)}</div>
-      ${ALERT.hot[s.sym]?`<span class="hotb">⏰ נקודת גאן ${ALERT.hot[s.sym]}</span>`:''}
       <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
       <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
       <canvas></canvas>
@@ -618,6 +618,12 @@ function spark(cv, sym){
   x.strokeStyle = pts[pts.length-1]>=pts[0]?'#22c55e':'#ef4444'; x.lineWidth=1.6; x.beginPath();
   pts.forEach((p,i)=>{ const X=i/(pts.length-1)*W, Y=H-2-(p-mn)/rg*(H-4); i?x.lineTo(X,Y):x.moveTo(X,Y); });
   x.stroke();
+  const sig=(typeof ALERT!=='undefined'&&ALERT.sig&&ALERT.sig[sym])||[];
+  const ly=H-2-(pts[pts.length-1]-mn)/rg*(H-4);
+  sig.forEach((g,k)=>{ const up=g.dir==='up', ax=W-8-k*16, c=up?'#22c55e':'#ef4444';
+    x.fillStyle=c; x.strokeStyle='#0f1420'; x.lineWidth=1.5; x.beginPath();
+    const y0=Math.max(9,Math.min(H-9,ly)), t=up?-1:1;
+    x.moveTo(ax,y0+t*8); x.lineTo(ax-6,y0-t*3); x.lineTo(ax-2,y0-t*3); x.lineTo(ax-2,y0-t*8); x.lineTo(ax+2,y0-t*8); x.lineTo(ax+2,y0-t*3); x.lineTo(ax+6,y0-t*3); x.closePath(); x.stroke(); x.fill(); });
 }
 
 /* ---------- Gann tools ---------- */
@@ -740,6 +746,8 @@ const fd=d=>d?d.split('-').reverse().join('/'):'';
 function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
+  const tItems=(ALERT.items||[]).filter(x=>x.s.sym===cur), hItems=(ALERT.half||{})[cur]||[];
+  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div></div>`).join('')+'</div>'; }
   if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
   const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
     <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
@@ -753,7 +761,7 @@ function renderStory(){
   }
   h+='</div>';
   $('storyPanel').innerHTML=h;
-  $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x));
+  $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x||(ALERT.sig||{})[cur]));
 }
 function renderRisk(){
   const g=$('riskGrid'); g.innerHTML='';
@@ -837,12 +845,13 @@ function halfLegs(sym,minRise){
     if(confirmed<0) break;
     const lo=v[L][1], hi=v[H][1], mid=lo+(hi-lo)/2;
     let m=confirmed, brk=-1;
-    for(let k=confirmed;k<n;k++){ if(v[k][1]>hi){ brk=k; break; } if(v[k][1]<v[m][1]) m=k; }
+    let brokeAt=null;
+    for(let k=confirmed;k<n;k++){ if(v[k][1]>hi){ brk=k; break; } if(v[k][1]<v[m][1]) m=k; if(!brokeAt&&v[k][1]<mid) brokeAt=v[k][0]; }
     const held=v[m][1]>=mid, heldHalfPrice=v[m][1]>=hi/2;
     let outcome;
     if(brk>=0) outcome=held?'held':'broke-recovered';
     else outcome=held?'open':'broke-open';
-    legs.push({L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null});
+    legs.push({brokeAt,L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null});
     if(brk<0) break;
     L=m; i=brk;
   }
@@ -1045,8 +1054,28 @@ function gannAlerts(){
 }
 let alertTimer=null;
 function scheduleAlert(){ clearTimeout(alertTimer); alertTimer=setTimeout(renderAlert,1500); }
-let ALERT={status:'wait', items:[], valid:[], hot:{}};
-const whenTxt=x=>x.diff===0?'היום':x.diff===1?'מחר':x.diff>1?'בעוד '+x.diff+' ימים':'לפני '+(-x.diff)+(x.diff===-1?' יום':' ימים');
+let ALERT={status:'wait', items:[], valid:[], hot:{}, sig:{}, half:{}};
+function halfSignal(sym){
+  const minRise=parseFloat(S.halfMin)||0.2, legs=halfLegs(sym,minRise), st=halfStats(legs), last=legs[legs.length-1];
+  if(!last||(last.outcome!=='open'&&last.outcome!=='broke-open')) return [];
+  const v=seriesFor(sym); if(!v.length) return []; const p=v[v.length-1][1], lo=last.L[1], hi=last.H[1], mid=last.mid, out=[];
+  const hist=st.n>=3?st.pHeld:null;
+  if(last.outcome==='open' && Math.abs(p-mid)<=0.08*(hi-lo)){
+    const dir=(hist!=null&&hist<0.5)?'down':'up';
+    out.push({kind:'half',dir,short:'באזור החצי',
+      txt:`הגיע לאזור החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. `+(hist==null?'לפי גאן כאן התיקון אמור להיעצר, אבל אין מספיק מקרים מהעבר במניה הזו.':dir==='up'?`בעבר המניה נעצרה בחצי ב־${pc(hist)} מהמקרים – ולכן הכיוון הצפוי למעלה.`:`בעבר המניה שברה את החצי ב־${pc(1-hist)} מהמקרים – ולכן יש סיכוי שהירידה תימשך.`)});
+  }
+  if(last.outcome==='broke-open' && last.brokeAt && last.brokeAt>=addDays(today(),-15)){
+    out.push({kind:'halfbreak',dir:'down',short:'שבר את החצי',
+      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+(st.broke?` בעבר, מתוך ${st.broke} שבירות, המניה חזרה לשיא ב־${pc(st.pRec)} מהמקרים – אבל לפעמים רק אחרי זמן רב.`:'')});
+  }
+  if(Math.abs(p-hi/2)<=0.05*hi/2){
+    out.push({kind:'halfprice',dir:'up',short:'בחצי ממחיר השיא',
+      txt:`ירד לחצי ממחיר השיא (${fmt(hi/2)}). זו הרצפה השנייה של גאן${st.n?`, ובעבר המניה נשארה מעליה ב־${pc(st.pHP)} מהמקרים`:''}.`});
+  }
+  return out;
+}
+const whenTxt=x=>x.diff===0?'היום':x.diff===1?'מחר':x.diff===-1?'אתמול':x.diff>1?'בעוד '+x.diff+' ימים':'לפני '+(-x.diff)+' ימים';
 function alertItemHtml(x){
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום'; const L=look(x.s.sym,x.idx); const up=x.last.t==='L';
   return `<div class="al" data-sym="${esc(x.s.sym)}"><b>${L.i} ${esc(x.s.name)} · ${whenTxt(x)} (${fd(x.d)})</b>
@@ -1063,15 +1092,21 @@ function statusTxt(){
 }
 function renderAlert(){
   let A; try{ A=gannAlerts(); }catch(e){ A={ready:false}; }
-  const hot={};
-  if(!A.ready) ALERT={status:'wait',items:[],valid:[],hot};
-  else { A.items.forEach(x=>{ if(!hot[x.s.sym]) hot[x.s.sym]=whenTxt(x); }); ALERT={status:!A.valid.length?'novalid':A.items.length?'ok':'none', items:A.items, valid:A.valid, hot}; }
+  const hot={}, sig={}, half={};
+  const add=(sym,g)=>{ (sig[sym]=sig[sym]||[]).push(g); hot[sym]=true; };
+  if(A.ready) A.items.forEach(x=>{ if(!(sig[x.s.sym]||[]).some(g=>g.kind==='time')) add(x.s.sym,{kind:'time',dir:x.last.t==='L'?'down':'up',short:'תאריך גאן '+whenTxt(x)}); });
+  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
+  const nHalf=Object.keys(half).length;
+  if(!A.ready) ALERT={status:nHalf?'ok':'wait',items:[],valid:[],hot,sig,half};
+  else ALERT={status:(A.items.length||nHalf)?'ok':(!A.valid.length?'novalid':'none'), items:A.items, valid:A.valid, hot, sig, half};
   // header button blinks when something is due
   const n=Object.keys(hot).length;
   $('alertBtn').classList.toggle('blink',n>0); $('alertCnt').textContent=n; $('alertCnt').classList.toggle('hidden',!n);
   // cards on the home screen
-  document.querySelectorAll('#grid .card').forEach(c=>{ const on=!!hot[c.dataset.sym]; c.classList.toggle('gannhot',on);
-    let b=c.querySelector('.hotb'); if(on&&!b){ b=document.createElement('span'); b.className='hotb'; c.querySelector('.desc').after(b); } if(b){ if(on) b.textContent='⏰ נקודת גאן '+hot[c.dataset.sym]; else b.remove(); } });
+  document.querySelectorAll('#grid .card').forEach(c=>{ const sym=c.dataset.sym, on=!!hot[sym]; c.classList.toggle('gannhot',on);
+    c.querySelectorAll('.hotb').forEach(b=>b.remove());
+    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
+    const cv=c.querySelector('canvas'); if(cv) spark(cv,sym); });
   // banner on the home screen – always says what is going on
   const box=$('gannAlert');
   if(S.alertHidden===today()){ box.classList.add('hidden'); }
@@ -1085,7 +1120,10 @@ function renderAlert(){
   if(!$('alerts').classList.contains('hidden')) renderAlertsView();
 }
 function renderAlertsView(){
-  $('alertsList').innerHTML=ALERT.items.length?ALERT.items.map(alertItemHtml).join(''):`<p class="hint">${statusTxt()}</p>`;
+  const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
+    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · 📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div></div>`).join(''); }).join('');
+  const timeHtml=ALERT.items.map(alertItemHtml).join('');
+  $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 החצי של גאן</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
 }
 
