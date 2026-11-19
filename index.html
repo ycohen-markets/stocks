@@ -142,6 +142,12 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .al{padding:8px 0;border-bottom:1px dashed #2a355066;font-size:14px;line-height:1.55;cursor:pointer}
 .al:last-child{border-bottom:none}
 .dir{font-weight:700}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #f59e0b00}50%{box-shadow:0 0 0 5px #f59e0bAA;border-color:#f59e0b}}
+.blink{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b!important}
+.card.gannhot{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b}
+.hotb{display:inline-block;background:#f59e0b;color:#111;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-top:6px}
+.cnt{display:inline-block;background:#f59e0b;color:#111;border-radius:10px;padding:0 7px;font-weight:700;margin-right:4px}
+#gannAlert{cursor:pointer}
 </style>
 </head>
 <body>
@@ -149,6 +155,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <h1>מעקב המניות שלי</h1>
   <div class="status" id="status">טוען…</div>
   <div class="row">
+    <button id="alertBtn">⏰ נקודות גאן <span class="cnt hidden" id="alertCnt"></span></button>
     <button id="gannBtn">📐 גאן</button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
@@ -190,6 +197,14 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel hidden" id="gannAlert"></div>
     <div class="grid" id="grid"></div>
     <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
+  </section>
+
+  <section id="alerts" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">⏰ מניות שהגיעו לנקודת גאן</h2><button id="alertsBack">→ חזרה</button></div>
+      <p class="hint">כאן מופיעות מניות שתאריך של גאן נופל אצלן מיומיים אחורה ועד שלושה ימים קדימה. מוצגים רק מחזורים שנבדקו על כל ההיסטוריה ותפסו לפחות פי אחד וחצי יותר נקודות מפנה ממספרים אקראיים. הכיוון הוא ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית. לחיצה על מניה פותחת אותה.</p>
+      <div id="alertsList"></div>
+    </div>
   </section>
 
   <section id="gann" class="hidden">
@@ -575,10 +590,11 @@ function renderGrid(){
   groups[k].forEach(([s,idx])=>{
     const q=S.quotes[s.sym]||{}; const n=(S.notes[s.sym]||[]).length;
     const L=look(s.sym,idx);
-    const c=document.createElement('div'); c.className='card'; c.style.setProperty('--c',L.c);
+    const c=document.createElement('div'); c.className='card'+(ALERT.hot[s.sym]?' gannhot':''); c.dataset.sym=s.sym; c.style.setProperty('--c',L.c);
     const cls=q.pct>=0?'up':'down';
     c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
       <div class="desc">${descOf(s.sym)}</div>
+      ${ALERT.hot[s.sym]?`<span class="hotb">⏰ נקודת גאן ${ALERT.hot[s.sym]}</span>`:''}
       <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
       <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
       <canvas></canvas>
@@ -1029,34 +1045,54 @@ function gannAlerts(){
 }
 let alertTimer=null;
 function scheduleAlert(){ clearTimeout(alertTimer); alertTimer=setTimeout(renderAlert,1500); }
-function renderAlert(){
-  const box=$('gannAlert');
-  if(S.alertHidden===today()){ box.classList.add('hidden'); return; }
-  let A; try{ A=gannAlerts(); }catch(e){ box.classList.add('hidden'); return; }
+let ALERT={status:'wait', items:[], valid:[], hot:{}};
+const whenTxt=x=>x.diff===0?'היום':x.diff===1?'מחר':x.diff>1?'בעוד '+x.diff+' ימים':'לפני '+(-x.diff)+(x.diff===-1?' יום':' ימים');
+function alertItemHtml(x){
+  const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום'; const L=look(x.s.sym,x.idx); const up=x.last.t==='L';
+  return `<div class="al" data-sym="${esc(x.s.sym)}"><b>${L.i} ${esc(x.s.name)} · ${whenTxt(x)} (${fd(x.d)})</b>
+    <div>${x.why.map(w=>nm(w.N)+' מה'+(w.pv.t==='H'?'שיא':'שפל')+' של '+fd(w.pv.d)).join(' · ')}${x.why.length>1?' – כמה מחזורים נפגשים באותו תאריך, וגאן ראה בזה סימן חזק יותר.':'.'}</div>
+    <div>מאז ה${up?'שפל':'שיא'} האחרון (${fd(x.last.d)}) המחיר ${up?'עולה':'יורד'}, ולכן אם תגיע תפנית – <span class="dir ${up?'down':'up'}">${up?'כנראה כלפי מטה ↘':'כנראה כלפי מעלה ↗'}</span>.</div>
+    <div class="hint">במניה הזו המחזורים בעבר: <span class="wt ${x.verdict[1]}">${x.verdict[0]}</span></div></div>`;
+}
+function statusTxt(){
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
-  let h=`<div class="row" style="justify-content:space-between"><h3 style="margin:0">⏰ תאריכי גאן קרובים</h3><button id="alertHide">הסתר להיום</button></div>`;
-  if(!A.ready){ box.classList.add('hidden'); return; }
-  if(!A.valid.length){ h+=`<p class="hint">בנתונים שלך אף מחזור זמן לא תפס נקודות מפנה יותר ממקרה, ולכן אין כרגע תזכורות. ככל שתיטען יותר היסטוריה, הבדיקה תתעדכן.</p>`; }
-  else if(!A.items.length){ h+=`<p class="hint">אין תאריכי גאן ביומיים האחרונים ובשלושת הימים הקרובים. המחזורים שנבדקו ונמצאו טובים ממקרה: ${A.valid.map(nm).join(', ')}.</p>`; }
+  if(ALERT.status==='wait') return 'עדיין אין מספיק נתונים כדי לבדוק אילו מחזורים עובדים. כדאי לטעון היסטוריה מלאה – בכפתור שבמסך גאן.';
+  if(ALERT.status==='novalid') return 'בנתונים שלך אף מחזור זמן לא תפס נקודות מפנה יותר ממקרה, ולכן אין כרגע תזכורות.';
+  if(ALERT.status==='none') return 'אין כרגע מניות בנקודת גאן. המחזורים שנמצאו טובים ממקרה: '+ALERT.valid.map(nm).join(', ')+'.';
+  return '';
+}
+function renderAlert(){
+  let A; try{ A=gannAlerts(); }catch(e){ A={ready:false}; }
+  const hot={};
+  if(!A.ready) ALERT={status:'wait',items:[],valid:[],hot};
+  else { A.items.forEach(x=>{ if(!hot[x.s.sym]) hot[x.s.sym]=whenTxt(x); }); ALERT={status:!A.valid.length?'novalid':A.items.length?'ok':'none', items:A.items, valid:A.valid, hot}; }
+  // header button blinks when something is due
+  const n=Object.keys(hot).length;
+  $('alertBtn').classList.toggle('blink',n>0); $('alertCnt').textContent=n; $('alertCnt').classList.toggle('hidden',!n);
+  // cards on the home screen
+  document.querySelectorAll('#grid .card').forEach(c=>{ const on=!!hot[c.dataset.sym]; c.classList.toggle('gannhot',on);
+    let b=c.querySelector('.hotb'); if(on&&!b){ b=document.createElement('span'); b.className='hotb'; c.querySelector('.desc').after(b); } if(b){ if(on) b.textContent='⏰ נקודת גאן '+hot[c.dataset.sym]; else b.remove(); } });
+  // banner on the home screen – always says what is going on
+  const box=$('gannAlert');
+  if(S.alertHidden===today()){ box.classList.add('hidden'); }
   else {
-    h+=A.items.slice(0,8).map(x=>{ const L=look(x.s.sym,x.idx); const up=x.last.t==='L';
-      const when=x.diff===0?'היום':x.diff===1?'מחר':x.diff>1?'בעוד '+x.diff+' ימים':'לפני '+(-x.diff)+(x.diff===-1?' יום':' ימים');
-      return `<div class="al" data-sym="${esc(x.s.sym)}"><b>${L.i} ${esc(x.s.name)} · ${when} (${fd(x.d)})</b>
-        <div>${x.why.map(w=>nm(w.N)+' מה'+(w.pv.t==='H'?'שיא':'שפל')+' של '+fd(w.pv.d)).join(' · ')}${x.why.length>1?' – כמה מחזורים נפגשים באותו תאריך, וגאן ראה בזה סימן חזק יותר.':'.'}</div>
-        <div>מאז ה${up?'שפל':'שיא'} האחרון (${fd(x.last.d)}) המחיר ${up?'עולה':'יורד'}, ולכן אם תגיע תפנית – <span class="dir ${up?'down':'up'}">${up?'כנראה כלפי מטה ↘':'כנראה כלפי מעלה ↗'}</span>.</div>
-        <div class="hint">במניה הזו המחזורים בעבר: <span class="wt ${x.verdict[1]}">${x.verdict[0]}</span></div></div>`; }).join('');
-    if(A.items.length>8) h+=`<p class="hint">ועוד ${A.items.length-8} תאריכים – הרשימה המלאה במסך גאן, בלשונית מחזורי זמן.</p>`;
+    const names=Object.keys(hot).map(sym=>{ const x=S.symbols.find(z=>z.sym===sym); return x?x.name:sym; });
+    box.innerHTML=`<div class="row" style="justify-content:space-between"><b>⏰ נקודות גאן</b><button id="alertHide">הסתר להיום</button></div>
+      <div style="margin-top:6px">${n?`<b>${n} ${n===1?'מניה הגיעה':'מניות הגיעו'} לנקודת גאן:</b> ${names.map(esc).join(', ')}. <span class="hint">לחץ כאן לפרטים ולכיוון הצפוי.</span>`:`<span class="hint">${statusTxt()}</span>`}</div>`;
+    box.classList.remove('hidden'); box.classList.toggle('blink',n>0);
+    box.onclick=e=>{ if(e.target.id==='alertHide'){ S.alertHidden=today(); save(); box.classList.add('hidden'); return; } openView('alerts'); };
   }
-  h+=`<p class="hint" style="margin-top:6px">מוצגים רק מחזורים שבבדיקה על כל הנכסים תפסו לפחות פי 1.5 יותר נקודות מפנה ממספרים אקראיים. הכיוון הוא רק ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית.</p>`;
-  box.innerHTML=h; box.classList.remove('hidden');
-  $('alertHide').onclick=()=>{ S.alertHidden=today(); save(); box.classList.add('hidden'); };
-  box.querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+  if(!$('alerts').classList.contains('hidden')) renderAlertsView();
+}
+function renderAlertsView(){
+  $('alertsList').innerHTML=ALERT.items.length?ALERT.items.map(alertItemHtml).join(''):`<p class="hint">${statusTxt()}</p>`;
+  $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
 }
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann()};
+const VIEWS=['trend','risk','gann','alerts'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), alerts:()=>renderAlertsView()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')) return;
@@ -1086,7 +1122,8 @@ function applyState(st){
 $('riskBtn').onclick=()=>openView('risk');
 $('trendBtn').onclick=()=>openView('trend');
 $('gannBtn').onclick=()=>openView('gann');
-['riskBack','trendBack','gannBack'].forEach(id=>$(id).onclick=()=>history.back());
+$('alertBtn').onclick=()=>openView('alerts');
+['riskBack','trendBack','gannBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
