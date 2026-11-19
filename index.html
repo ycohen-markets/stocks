@@ -138,6 +138,10 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .cmp{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px}.cmp .b{flex:1;height:8px;border-radius:4px;background:#2a3550;overflow:hidden}.cmp .b i{display:block;height:100%}
 .soon{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #2a355066;font-size:13px}
 .soon .d{white-space:nowrap;font-weight:700}
+#gannAlert{border-top:4px solid #f59e0b;background:linear-gradient(170deg,#f59e0b1f,var(--card) 60%)}
+.al{padding:8px 0;border-bottom:1px dashed #2a355066;font-size:14px;line-height:1.55;cursor:pointer}
+.al:last-child{border-bottom:none}
+.dir{font-weight:700}
 </style>
 </head>
 <body>
@@ -183,6 +187,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   </section>
 
   <section id="home">
+    <div class="panel hidden" id="gannAlert"></div>
     <div class="grid" id="grid"></div>
     <p class="hint" style="margin-top:14px">שעות המסחר מחושבות לפי שעון ישראל ומתעדכנות לבד במעבר לשעון חורף או קיץ. בימי חג בארצות הברית הבורסה סגורה גם אם כתוב פתוח. לחיצה על כרטיס פותחת את כל ההיסטוריה, הגרף וההערות של אותו נכס.</p>
   </section>
@@ -562,6 +567,7 @@ function hoursHTML(sym){
 
 /* ---------- home grid ---------- */
 function renderGrid(){
+  scheduleAlert();
   const g=$('grid'); g.innerHTML='';
   const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
   GROUP_ORDER.filter(k=>groups[k]).forEach(k=>{
@@ -965,14 +971,17 @@ function renderTime(){
   const line=P.n<10?'אין עדיין מספיק נקודות מפנה כדי לקבוע.':R.ppv<=0.1?'המספרים של גאן תפסו יותר נקודות מפנה ממה שמספרים אקראיים תופסים – יש כאן סימן שהמחזורים עובדים.':R.ppv>=0.9?'המספרים של גאן תפסו פחות נקודות מפנה ממספרים אקראיים – בנתונים האלה המחזורים לא עבדו.':'המספרים של גאן תפסו בערך כמו מספרים אקראיים – כלומר רוב "הפגיעות" הן כנראה מקרה, כי עם הרבה תאריכים תמיד משהו נופל קרוב.';
   const ratios=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix],r:R.perNbase[ix]?P.perN[ix]/R.perNbase[ix]:0})).filter(x=>x.b>=3).sort((x,y)=>y.r-x.r);
   const top=ratios.slice(0,5), bottom=ratios.slice(-3).reverse();
+  const strong=ratios.filter(x=>x.r>=1.5&&x.a>=10);
+  const strongTxt=strong.length?' אבל כמה מחזורים בולטים לטובה: '+strong.slice(0,4).map(x=>(x.N>=720&&x.N%360===0?(x.N/360)+' שנים':x.N+' יום')+' (פי '+x.r.toFixed(1)+')').join(', ')+'. רק הם מופיעים בתזכורות במסך הראשי.':'';
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
+  const line2=(R.ppv>0.1&&strong.length)?'בכלל המחזורים יחד – בערך כמו מקרה,'+strongTxt:line;
   $('timeSummary').innerHTML=`<h3 style="margin-top:0">📊 מה יצא בכל הנכסים יחד</h3>
     <div class="sumgrid">
       <div class="gbox"><div class="big">${P.n}</div><div class="hint">נקודות מפנה שנבדקו</div></div>
       <div class="gbox"><div class="big">${pc(hr)}</div><div class="hint">נפלו קרוב לתאריך של גאן</div></div>
       <div class="gbox"><div class="big">${pc(br)}</div><div class="hint">היו נופלות קרוב גם במקרה</div></div>
     </div>
-    <div class="insight" style="margin-top:10px"><b>בשורה התחתונה:</b> ${line}</div>
+    <div class="insight" style="margin-top:10px"><b>בשורה התחתונה:</b> ${line2}</div>
     ${top.length?`<h4>המחזורים שעבדו הכי טוב יחסית למקרה</h4>${top.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)} · <b>${x.r>=1?'פי '+x.r.toFixed(1):'פחות מהמקרה'}</b></span></div>`).join('')}`:''}
     ${bottom.length?`<h4>והחלשים ביותר</h4>${bottom.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)}</span></div>`).join('')}`:''}
     <p class="hint">"פגיעה" היא נקודת מפנה שהגיעה עד כמה ימים מתאריך של גאן (במחזור של שנה – עד אחד עשר יום). שים לב: עם הרבה מספרים והרבה נקודות קודמות, הרבה נקודות מפנה "פוגעות" גם סתם – לכן ההשוואה למקרה היא החלק החשוב.</p>`;
@@ -1001,6 +1010,48 @@ $('timeLoadFull').onclick=()=>$('loadAllFull').onclick();
 
 $('halfMin').onchange=()=>{ S.halfMin=$('halfMin').value; save(); renderGann(); };
 $('halfLoadFull').onclick=()=>$('loadAllFull').onclick();
+
+
+/* ---------- Gann date alerts on the home screen ---------- */
+function gannAlerts(){
+  const T=parseFloat(S.timeMin)||0.15, R=timeAnalysis(T), P=R.pool;
+  if(P.n<20) return {ready:false};
+  // only cycles that caught clearly more turning points than the fake numbers did, across all assets
+  const valid=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix]})).filter(x=>x.b>=3&&x.a>=10&&x.a>=x.b*1.5).map(x=>x.N);
+  const t0=today(), items=[];
+  S.symbols.forEach((s,idx)=>{ const r=R.per[s.sym]; if(!r||r.piv.length<2) return; const last=r.piv[r.piv.length-1];
+    r.piv.slice(-3).forEach(pv=>valid.forEach(N=>{ const d=addDays(pv.d,N); const diff=Math.round((new Date(d)-new Date(t0))/864e5);
+      if(diff<-2||diff>3) return;
+      items.push({s,idx,N,pv,d,diff,last,verdict:verdict(r.pv,r.n)}); })); });
+  const m=new Map(); items.forEach(x=>{ const k=x.s.sym+'|'+x.d; if(!m.has(k)) m.set(k,{...x,why:[]}); m.get(k).why.push({N:x.N,pv:x.pv}); });
+  const merged=[...m.values()].sort((a,b)=>a.diff-b.diff||b.why.length-a.why.length);
+  return {ready:true, valid, items:merged};
+}
+let alertTimer=null;
+function scheduleAlert(){ clearTimeout(alertTimer); alertTimer=setTimeout(renderAlert,1500); }
+function renderAlert(){
+  const box=$('gannAlert');
+  if(S.alertHidden===today()){ box.classList.add('hidden'); return; }
+  let A; try{ A=gannAlerts(); }catch(e){ box.classList.add('hidden'); return; }
+  const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
+  let h=`<div class="row" style="justify-content:space-between"><h3 style="margin:0">⏰ תאריכי גאן קרובים</h3><button id="alertHide">הסתר להיום</button></div>`;
+  if(!A.ready){ box.classList.add('hidden'); return; }
+  if(!A.valid.length){ h+=`<p class="hint">בנתונים שלך אף מחזור זמן לא תפס נקודות מפנה יותר ממקרה, ולכן אין כרגע תזכורות. ככל שתיטען יותר היסטוריה, הבדיקה תתעדכן.</p>`; }
+  else if(!A.items.length){ h+=`<p class="hint">אין תאריכי גאן ביומיים האחרונים ובשלושת הימים הקרובים. המחזורים שנבדקו ונמצאו טובים ממקרה: ${A.valid.map(nm).join(', ')}.</p>`; }
+  else {
+    h+=A.items.slice(0,8).map(x=>{ const L=look(x.s.sym,x.idx); const up=x.last.t==='L';
+      const when=x.diff===0?'היום':x.diff===1?'מחר':x.diff>1?'בעוד '+x.diff+' ימים':'לפני '+(-x.diff)+(x.diff===-1?' יום':' ימים');
+      return `<div class="al" data-sym="${esc(x.s.sym)}"><b>${L.i} ${esc(x.s.name)} · ${when} (${fd(x.d)})</b>
+        <div>${x.why.map(w=>nm(w.N)+' מה'+(w.pv.t==='H'?'שיא':'שפל')+' של '+fd(w.pv.d)).join(' · ')}${x.why.length>1?' – כמה מחזורים נפגשים באותו תאריך, וגאן ראה בזה סימן חזק יותר.':'.'}</div>
+        <div>מאז ה${up?'שפל':'שיא'} האחרון (${fd(x.last.d)}) המחיר ${up?'עולה':'יורד'}, ולכן אם תגיע תפנית – <span class="dir ${up?'down':'up'}">${up?'כנראה כלפי מטה ↘':'כנראה כלפי מעלה ↗'}</span>.</div>
+        <div class="hint">במניה הזו המחזורים בעבר: <span class="wt ${x.verdict[1]}">${x.verdict[0]}</span></div></div>`; }).join('');
+    if(A.items.length>8) h+=`<p class="hint">ועוד ${A.items.length-8} תאריכים – הרשימה המלאה במסך גאן, בלשונית מחזורי זמן.</p>`;
+  }
+  h+=`<p class="hint" style="margin-top:6px">מוצגים רק מחזורים שבבדיקה על כל הנכסים תפסו לפחות פי 1.5 יותר נקודות מפנה ממספרים אקראיים. הכיוון הוא רק ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית.</p>`;
+  box.innerHTML=h; box.classList.remove('hidden');
+  $('alertHide').onclick=()=>{ S.alertHidden=today(); save(); box.classList.add('hidden'); };
+  box.querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+}
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
