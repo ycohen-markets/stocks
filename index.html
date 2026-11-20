@@ -152,6 +152,8 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .hotb.hup{background:#22c55e;color:#062}.hotb.hdown{background:#ef4444;color:#fff}
 .cnt{display:inline-block;background:#f59e0b;color:#111;border-radius:10px;padding:0 7px;font-weight:700;margin-right:4px}
 #gannAlert{cursor:pointer}
+.btnlink{display:inline-block;text-decoration:none;border-radius:8px;padding:7px 12px;font-size:14px}
+.btnlink.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);color:#fff;font-weight:600}
 </style>
 </head>
 <body>
@@ -301,7 +303,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
           <button data-r="all">ארבע שנים</button>
           <button data-r="max">מאז ההקמה</button>
         </div>
-        <button class="pri" id="addNoteNow">+ סימון במחיר הנוכחי</button>
+        <div class="row"><button id="askClaude">💬 לשאול את Claude על המניה</button><button class="pri" id="addNoteNow">+ סימון במחיר הנוכחי</button></div>
       </div>
       <div id="dHours" style="margin-bottom:10px"></div>
       <div class="stats" id="dStats"></div>
@@ -334,6 +336,16 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     </div>
   </section>
 </main>
+
+<div id="askModal" class="modal hidden">
+  <div class="box">
+    <h3 style="margin-top:0">💬 לשאול את Claude על <span id="askName"></span></h3>
+    <p class="hint">כתוב את השאלה שלך. כשתלחץ על שליחה, ייפתח צ'אט חדש עם Claude, וכל הנתונים של המניה מהאפליקציה – מחיר, נקודות גאן, הנפילה והעלייה הגדולות והסימונים שלך – יצורפו לשאלה אוטומטית.</p>
+    <textarea id="askText" rows="4" style="width:100%;margin:8px 0" placeholder="למשל: מה דעתך על המצב שלה עכשיו לפי גאן?"></textarea>
+    <div class="row"><a id="askGo" class="btnlink pri" target="_blank" rel="noopener">שליחה ל־Claude</a><button id="askCancel">ביטול</button></div>
+    <p class="hint" id="askHint"></p>
+  </div>
+</div>
 
 <div id="noteModal" class="modal hidden">
   <div class="box">
@@ -1153,13 +1165,44 @@ const sigPlugin={id:'sig',afterDatasetsDraw(chart){
   ctx.restore();
 }};
 
+/* ---------- ask Claude about the open stock ---------- */
+function stockBrief(sym){
+  const s=S.symbols.find(x=>x.sym===sym)||{name:sym}, q=S.quotes[sym]||{}, x=statsFor(sym), st=STORIES[sym]||{};
+  const L=[];
+  L.push(`אני משתמש באפליקציית מעקב מניות שבנינו יחד, ויש לי שאלה על ${s.name} (${sym}) – ${descOf(sym)||''}.`);
+  L.push(`הנתונים מהאפליקציה נכון ל־${new Date().toLocaleString('he-IL')}:`);
+  if(q.price!=null) L.push(`מחיר: ${fmt(q.price)}, שינוי יומי ${pct(q.pct)}.`);
+  if(x){ L.push(`שיא כל הזמנים: ${fmt(x.ath.p)} (${fd(x.ath.d)}); היום ${pct(x.cur*100)} מהשיא.`);
+    if(x.mddTrough) L.push(`הנפילה הכי עמוקה בנתונים: ${pct(x.mdd*100)} (${fd(x.mddPeak[0])} עד ${fd(x.mddTrough[0])}).`);
+    if(x.vol!=null) L.push(`תנודתיות שנתית: ${Math.round(x.vol*100)}%. ${x.above?'מעל':'מתחת ל'}אמצע השנה האחרונה.`); }
+  try{ const legs=halfLegs(sym,parseFloat(S.halfMin)||0.2), hs=halfStats(legs), hn=halfNow(legs,sym);
+    if(hs.n) L.push(`כלל החצי של גאן: בעבר התיקון נעצר מעל החצי ב־${pc(hs.pHeld)} מתוך ${hs.n} מקרים.`);
+    if(hn) L.push(`עכשיו: ${hn.state==='above'?'בתיקון ומעל החצי':hn.state==='below'?'בתיקון ומתחת לחצי':'שבר את החצי'} (חצי: ${fmt(hn.mid)}).`); }catch(e){}
+  ((ALERT.sig||{})[sym]||[]).forEach(g=>L.push(`סימן גאן פעיל: ${g.short} – כיוון ${g.dir==='up'?'למעלה':'למטה'}.`));
+  if(st.fall) L.push(`הנפילה הגדולה בהיסטוריה: ${st.fall.when} – ${st.fall.phys}.`);
+  if(st.rise) L.push(`העלייה הגדולה: ${st.rise.when} – ${st.rise.phys}.`);
+  const notes=(S.notes[sym]||[]).slice(-5); if(notes.length) L.push('הסימונים שלי: '+notes.map(n=>`${n.label}: ${n.text}`).join(' | '));
+  return L.join('\n');
+}
+function updateAskLink(){
+  const text=stockBrief(cur)+'\n\nהשאלה שלי: '+($('askText').value.trim()||'מה אתה אומר על המצב שלה עכשיו?')+'\n\nבבקשה לענות בעברית, בקצרה ובשפה פשוטה.';
+  $('askGo').href='https://claude.ai/new?q='+encodeURIComponent(text);
+  $('askGo').dataset.text=text;
+}
+$('askClaude').onclick=()=>{ const s=S.symbols.find(x=>x.sym===cur); $('askName').textContent=s?s.name:cur; $('askText').value=''; $('askHint').textContent='';
+  history.pushState({layer:'modal'},''); $('askModal').classList.remove('hidden'); updateAskLink(); setTimeout(()=>$('askText').focus(),50); };
+$('askText').oninput=updateAskLink;
+$('askGo').onclick=()=>{ updateAskLink(); try{ navigator.clipboard.writeText($('askGo').dataset.text).catch(()=>{}); }catch(e){}
+  $('askHint').textContent='נפתח צ\'אט חדש. אם השאלה לא מופיעה שם, היא כבר מועתקת – פשוט מדביקים אותה ושולחים.'; };
+$('askCancel').onclick=()=>history.back();
+
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
 const VIEWS=['trend','risk','gann','alerts'];
 const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), alerts:()=>renderAlertsView()};
 let pendingView=null;
 function openView(v){
-  if(!$('noteModal').classList.contains('hidden')) return;
+  if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
   if(!$('settings').classList.contains('hidden')){ pendingView=v; history.back(); return; }
   if(!$(v).classList.contains('hidden')) return;
   const onTop=cur||VIEWS.some(x=>!$(x).classList.contains('hidden'));
@@ -1192,6 +1235,7 @@ $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
   if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
+  if(!$('askModal').classList.contains('hidden')){ $('askModal').classList.add('hidden'); return; }
   if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); if(pendingView){ const v=pendingView; pendingView=null; openView(v); } return; }
   applyState(history.state);
 });
