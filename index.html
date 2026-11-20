@@ -709,7 +709,7 @@ const gannPlugin={id:'gann',afterDatasetsDraw(chart){
   G.vLines.forEach(l=>{ const X=x.getPixelForValue(l.i); ctx.strokeStyle=l.color; ctx.lineWidth=l.w; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(X,a.top); ctx.lineTo(X,a.bottom); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=l.color; ctx.textAlign='center'; ctx.fillText(l.label,X,a.top+12); });
   G.rays.forEach(r=>{ ctx.strokeStyle=r.color; ctx.lineWidth=r.w; ctx.beginPath(); let last=null;
     for(let i=r.i0;i<n;i++){ const p=r.p0+r.slope*(i-r.i0); if(p<=0) break; const X=x.getPixelForValue(i), Y=y.getPixelForValue(p); if(i===r.i0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y); last={X,Y}; if(p>y.max*3||p<y.min/3) break; }
-    ctx.stroke(); if(last){ ctx.fillStyle=r.color; ctx.textAlign='right'; ctx.fillText(r.label,Math.max(a.left+20,Math.min(a.right-4,last.X)),Math.max(a.top+10,Math.min(a.bottom-4,last.Y))); } });
+    ctx.stroke(); if(last){ ctx.fillStyle=r.color; ctx.textAlign='left'; ctx.fillText(r.label,Math.max(a.left+20,Math.min(a.right-4,last.X)),Math.max(a.top+10,Math.min(a.bottom-4,last.Y))); } });
   const pv=G.pivot; const PX=x.getPixelForValue(pv.i), PY=y.getPixelForValue(pv.p);
   ctx.fillStyle='#fbbf24'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(PX,PY,6,0,Math.PI*2); ctx.fill(); ctx.stroke();
   ctx.restore();
@@ -1127,6 +1127,26 @@ function renderAlertsView(){
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
 }
 
+/* ---------- big Gann arrows on the stock chart ---------- */
+const sigPlugin={id:'sig',afterDatasetsDraw(chart){
+  const gs=(ALERT.sig||{})[cur]||[]; if(!gs.length||!series.length) return;
+  const {ctx,chartArea:a,scales:{x,y}}=chart; const n=series.length;
+  const X=x.getPixelForValue(n-1), Y=y.getPixelForValue(series[n-1].v);
+  ctx.save(); try{ctx.direction='ltr';}catch(e){}
+  gs.forEach((g,k)=>{
+    const up=g.dir==='up', c=up?'#22c55e':'#ef4444', ax=Math.min(a.right-22,X-20)-k*46, t=up?-1:1;
+    // the arrow's tip points at the latest price: from below for up, from above for down
+    const y0=Math.max(a.top+32,Math.min(a.bottom-40,Y+(up?36:-36)));
+    ctx.fillStyle=c; ctx.strokeStyle='#0f1420'; ctx.lineWidth=2.5; ctx.beginPath();
+    ctx.moveTo(ax,y0+t*30); ctx.lineTo(ax-17,y0+t*8); ctx.lineTo(ax-7,y0+t*8); ctx.lineTo(ax-7,y0-t*22); ctx.lineTo(ax+7,y0-t*22); ctx.lineTo(ax+7,y0+t*8); ctx.lineTo(ax+17,y0+t*8); ctx.closePath();
+    ctx.stroke(); ctx.fill();
+    ctx.font='bold 12px Heebo,Arial'; ctx.textAlign='center'; ctx.fillStyle=c;
+    const lab=(g.kind==='time'?'⏰ ':'📐 ')+(g.kind==='time'?'זמן':g.kind==='halfprice'?'חצי מהשיא':'החצי');
+    ctx.fillText(lab,ax,up?y0+22+15:y0-22-7);
+  });
+  ctx.restore();
+}};
+
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
 const VIEWS=['trend','risk','gann','alerts'];
@@ -1231,13 +1251,13 @@ function drawChart(){
       {data:series.map(p=>p.v),borderColor:up?'#22c55e':'#ef4444',backgroundColor:up?'#22c55e22':'#ef444422',fill:true,pointRadius:0,borderWidth:2,tension:.15},
       {data:nd,showLine:false,pointRadius:8,pointHoverRadius:10,pointBackgroundColor:nc,pointBorderColor:'#fff',pointBorderWidth:2}
     ]},
-    plugins:[gannPlugin],
+    plugins:[gannPlugin, sigPlugin],
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{rtl:true,callbacks:{label:c=>{
         if(c.datasetIndex===0) return 'מחיר: '+fmt(c.parsed.y);
         const ns=(S.notes[cur]||[]).filter(n=>noteIndex(n)===c.dataIndex); return ns.map(n=>'📌 '+n.text);
       }}}},
-      scales:{x:{reverse:true,ticks:{color:'#8b96ad',maxTicksLimit:8},grid:{color:'#2a355033'}},y:{type:range==='max'?'logarithmic':'linear',position:'right',ticks:{color:'#8b96ad'},grid:{color:'#2a355055'}}},
+      scales:{x:{reverse:false,ticks:{color:'#8b96ad',maxTicksLimit:8},grid:{color:'#2a355033'}},y:{type:range==='max'?'logarithmic':'linear',position:'right',ticks:{color:'#8b96ad'},grid:{color:'#2a355055'}}},
       onClick:(e)=>{ const el=chart.getElementsAtEventForMode(e,'index',{intersect:false},true); if(!el.length) return; const p=series[el[0].index];
         if(picking){ picking=false; document.querySelector('.chartwrap').classList.remove('picking'); const c=gcfg(); const yv=chart.scales.y.getValueForPixel(e.y);
           const kind=Math.abs(yv-p.hi)<Math.abs(yv-p.lo)?'high':'low'; c.type='pick'; c.pick={day:p.day,ts:p.ts,kind}; save(); setStatus('נקודת הציר נקבעה: '+p.label+' ('+(kind==='high'?'שיא':'שפל')+')'); renderDetail(); return; }
