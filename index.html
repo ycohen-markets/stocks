@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon2-192.png">
+<link rel="apple-touch-icon" href="icon2-180.png">
 <meta name="theme-color" content="#1a1240">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -53,6 +53,9 @@ main{padding:18px 20px;max-width:1300px;margin:0 auto}
 .note .when{font-size:12px;color:var(--mut)}
 .hint{font-size:13px;color:var(--mut)}
 .sym-row{display:grid;grid-template-columns:1fr 1fr 34px;gap:8px;margin-bottom:6px;align-items:center}
+.sym-row input{min-width:0;width:100%}
+#keyEdit{max-width:100%}
+#settings label{max-width:100%}
 .sym-row .del{padding:6px 0}
 .err{color:var(--down);font-size:13px}
 a{color:var(--acc)}
@@ -176,7 +179,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="settings" class="panel hidden">
     <h2 style="margin-top:0">הגדרות</h2>
     <div class="row" style="margin-bottom:12px">
-      <label>מפתח גישה: <input id="keyEdit" type="password" autocomplete="off" style="direction:ltr;width:240px"></label><button id="keyShow" type="button">הצג</button>
+      <label>מפתח גישה: <input id="keyEdit" type="password" autocomplete="off" style="direction:ltr;width:220px"></label><button id="keyShow" type="button">הצג</button>
       <label>רענון כל <select id="intervalSel"><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option><option value="30">חצי שעה</option></select></label>
     </div>
     <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. עם שלושים נכסים, רענון כל רבע שעה מספיק לבערך שש שעות ביום, וכל חצי שעה ליום שלם; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
@@ -203,7 +206,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="alerts" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">⏰ מניות שהגיעו לנקודת גאן</h2><button id="alertsBack">→ חזרה</button></div>
-      <p class="hint">כאן מופיעות מניות שתאריך של גאן נופל אצלן מיומיים אחורה ועד שלושה ימים קדימה. מוצגים רק מחזורים שנבדקו על כל ההיסטוריה ותפסו לפחות פי אחד וחצי יותר נקודות מפנה ממספרים אקראיים. הכיוון הוא ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית. לחיצה על מניה פותחת אותה.</p>
+      <p class="hint">כאן מופיעות מניות שתאריך של גאן נופל אצלן מיומיים אחורה ועד שלושה ימים קדימה. מוצגים רק מחזורים שנבדקו על כל ההיסטוריה ותפסו לפחות פי אחד וחצי יותר נקודות מפנה ממספרים אקראיים, וגם ניצחו כמעט את כל מאה הגרסאות המזויפות – כדי שמזל לא ייחשב כהצלחה. הכיוון הוא ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית. לחיצה על מניה פותחת אותה.</p>
       <div id="alertsList"></div>
     </div>
   </section>
@@ -985,7 +988,9 @@ function timeAnalysis(T){
   });
   const fh=poolFake.map(x=>x.hits); const pbase=fh.reduce((x,y)=>x+y,0)/fh.length; const ppv=fh.filter(h=>h>=pool.hits).length/fh.length;
   const perNbase=GANN_DAYS.map((_,ix)=>poolFake.reduce((a,x)=>a+x.perN[ix],0)/poolFake.length);
-  const res={per,pool,pbase,ppv,perNbase};
+  // how often fake numbers did at least as well as each real Gann number (lower = more convincing)
+  const perNp=GANN_DAYS.map((_,ix)=>poolFake.filter(x=>x.perN[ix]>=pool.perN[ix]).length/poolFake.length);
+  const res={per,pool,pbase,ppv,perNbase,perNp};
   timeCache={key,res}; return res;
 }
 function verdict(pv,n){ if(n<10) return ['מעט מדי נקודות מפנה','wt1']; if(pv<=0.1) return ['יותר ממקרה','wt0']; if(pv>=0.9) return ['פחות ממקרה','wt3']; return ['בערך כמו מקרה','wt1']; }
@@ -996,7 +1001,7 @@ function renderTime(){
   const line=P.n<10?'אין עדיין מספיק נקודות מפנה כדי לקבוע.':R.ppv<=0.1?'המספרים של גאן תפסו יותר נקודות מפנה ממה שמספרים אקראיים תופסים – יש כאן סימן שהמחזורים עובדים.':R.ppv>=0.9?'המספרים של גאן תפסו פחות נקודות מפנה ממספרים אקראיים – בנתונים האלה המחזורים לא עבדו.':'המספרים של גאן תפסו בערך כמו מספרים אקראיים – כלומר רוב "הפגיעות" הן כנראה מקרה, כי עם הרבה תאריכים תמיד משהו נופל קרוב.';
   const ratios=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix],r:R.perNbase[ix]?P.perN[ix]/R.perNbase[ix]:0})).filter(x=>x.b>=3).sort((x,y)=>y.r-x.r);
   const top=ratios.slice(0,5), bottom=ratios.slice(-3).reverse();
-  const strong=ratios.filter(x=>x.r>=1.5&&x.a>=10);
+  const strong=ratios.filter(x=>x.N>=90&&x.r>=1.5&&x.a>=10&&R.perNp[GANN_DAYS.indexOf(x.N)]<=0.01);
   const strongTxt=strong.length?' אבל כמה מחזורים בולטים לטובה: '+strong.slice(0,4).map(x=>(x.N>=720&&x.N%360===0?(x.N/360)+' שנים':x.N+' יום')+' (פי '+x.r.toFixed(1)+')').join(', ')+'. רק הם מופיעים בתזכורות במסך הראשי.':'';
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
   const line2=(R.ppv>0.1&&strong.length)?'בכלל המחזורים יחד – בערך כמו מקרה,'+strongTxt:line;
@@ -1009,6 +1014,7 @@ function renderTime(){
     <div class="insight" style="margin-top:10px"><b>בשורה התחתונה:</b> ${line2}</div>
     ${top.length?`<h4>המחזורים שעבדו הכי טוב יחסית למקרה</h4>${top.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)} · <b>${x.r>=1?'פי '+x.r.toFixed(1):'פחות מהמקרה'}</b></span></div>`).join('')}`:''}
     ${bottom.length?`<h4>והחלשים ביותר</h4>${bottom.map(x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${nm(x.N)}</span><span>${x.a} פגיעות · במקרה בערך ${Math.round(x.b)}</span></div>`).join('')}`:''}
+    <p class="hint">מחזורים קצרים מתשעים יום לא נכנסים לתזכורות: הם קרובים מדי לקצב הרגיל שבו מניות עולות ויורדות, ולכן הם נראים "מוצלחים" גם בנתונים אקראיים לגמרי.</p>
     <p class="hint">"פגיעה" היא נקודת מפנה שהגיעה עד כמה ימים מתאריך של גאן (במחזור של שנה – עד אחד עשר יום). שים לב: עם הרבה מספרים והרבה נקודות קודמות, הרבה נקודות מפנה "פוגעות" גם סתם – לכן ההשוואה למקרה היא החלק החשוב.</p>`;
   // upcoming dates
   const t0=today(), t1=addDays(t0,60), soon=[]; const MAIN=[90,180,270,360,720,1080,1440,1800,2520,3600];
@@ -1042,7 +1048,7 @@ function gannAlerts(){
   const T=parseFloat(S.timeMin)||0.15, R=timeAnalysis(T), P=R.pool;
   if(P.n<20) return {ready:false};
   // only cycles that caught clearly more turning points than the fake numbers did, across all assets
-  const valid=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix]})).filter(x=>x.b>=3&&x.a>=10&&x.a>=x.b*1.5).map(x=>x.N);
+  const valid=GANN_DAYS.map((N,ix)=>({N,a:P.perN[ix],b:R.perNbase[ix],p:R.perNp[ix]})).filter(x=>x.N>=90&&x.b>=3&&x.a>=10&&x.a>=x.b*1.5&&x.p<=0.01).map(x=>x.N);
   const t0=today(), items=[];
   S.symbols.forEach((s,idx)=>{ const r=R.per[s.sym]; if(!r||r.piv.length<2) return; const last=r.piv[r.piv.length-1];
     r.piv.slice(-3).forEach(pv=>valid.forEach(N=>{ const d=addDays(pv.d,N); const diff=Math.round((new Date(d)-new Date(t0))/864e5);
