@@ -762,7 +762,7 @@ function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
   const tItems=(ALERT.items||[]).filter(x=>x.s.sym===cur), hItems=(ALERT.half||{})[cur]||[];
-  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div></div>`).join('')+'</div>'; }
+  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
   if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
   const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
     <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
@@ -1078,18 +1078,20 @@ function halfSignal(sym){
   if(!last||(last.outcome!=='open'&&last.outcome!=='broke-open')) return [];
   const v=seriesFor(sym); if(!v.length) return []; const p=v[v.length-1][1], lo=last.L[1], hi=last.H[1], mid=last.mid, out=[];
   const hist=st.n>=3?st.pHeld:null;
-  if(last.outcome==='open' && Math.abs(p-mid)<=0.08*(hi-lo)){
+  const last3=v.slice(-3).map(x=>x[1]), clearBreak=last3.length===3&&last3.every(x=>x<mid);
+  const MEAN_HALF='💡 מה זה אומר: כל עוד המחיר נשאר מעל החצי, הקונים עדיין חזקים והתיקון הוא רק מנוחה. שבירה ברורה מתחת לחצי – סגירות שנשארות מתחת, לא נגיעה רגעית – אומרת שהמוכרים גברו והעלייה כנראה נגמרה.';
+  if((last.outcome==='open'||(last.outcome==='broke-open'&&!clearBreak)) && Math.abs(p-mid)<=0.08*(hi-lo)){
     const dir=(hist!=null&&hist<0.5)?'down':'up';
     out.push({kind:'half',dir,short:'באזור החצי',
-      txt:`הגיע לאזור החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. `+(hist==null?'לפי גאן כאן התיקון אמור להיעצר, אבל אין מספיק מקרים מהעבר במניה הזו.':dir==='up'?`בעבר המניה נעצרה בחצי ב־${pc(hist)} מהמקרים – ולכן הכיוון הצפוי למעלה.`:`בעבר המניה שברה את החצי ב־${pc(1-hist)} מהמקרים – ולכן יש סיכוי שהירידה תימשך.`)});
+      txt:`הגיע לאזור החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. `+(hist==null?'לפי גאן כאן התיקון אמור להיעצר, אבל אין מספיק מקרים מהעבר במניה הזו.':dir==='up'?`בעבר המניה נעצרה בחצי ב־${pc(hist)} מהמקרים – ולכן הכיוון הצפוי למעלה.`:`בעבר המניה שברה את החצי ב־${pc(1-hist)} מהמקרים – ולכן יש סיכוי שהירידה תימשך.`), mean:MEAN_HALF});
   }
-  if(last.outcome==='broke-open' && last.brokeAt && last.brokeAt>=addDays(today(),-15)){
+  if(last.outcome==='broke-open' && clearBreak && last.brokeAt && last.brokeAt>=addDays(today(),-15)){
     out.push({kind:'halfbreak',dir:'down',short:'שבר את החצי',
-      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+(st.broke?` בעבר, מתוך ${st.broke} שבירות, המניה חזרה לשיא ב־${pc(st.pRec)} מהמקרים – אבל לפעמים רק אחרי זמן רב.`:'')});
+      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+(st.broke?` בעבר, מתוך ${st.broke} שבירות, המניה חזרה לשיא ב־${pc(st.pRec)} מהמקרים – אבל לפעמים רק אחרי זמן רב.`:''), mean:MEAN_HALF});
   }
   if(Math.abs(p-hi/2)<=0.05*hi/2){
     out.push({kind:'halfprice',dir:'up',short:'בחצי ממחיר השיא',
-      txt:`ירד לחצי ממחיר השיא (${fmt(hi/2)}). זו הרצפה השנייה של גאן${st.n?`, ובעבר המניה נשארה מעליה ב־${pc(st.pHP)} מהמקרים`:''}.`});
+      txt:`ירד לחצי ממחיר השיא (${fmt(hi/2)}). זו הרצפה השנייה של גאן${st.n?`, ובעבר המניה נשארה מעליה ב־${pc(st.pHP)} מהמקרים`:''}.`, mean:'💡 מה זה אומר: חצי ממחיר השיא הוא הרצפה העמוקה והחזקה יותר של גאן. החזקה מעליה אומרת שהקונים מגינים על המניה; שבירה ברורה מתחתיה היא סימן חולשה רציני.'});
   }
   return out;
 }
@@ -1099,7 +1101,8 @@ function alertItemHtml(x){
   return `<div class="al" data-sym="${esc(x.s.sym)}"><b>${L.i} ${esc(x.s.name)} · ${whenTxt(x)} (${fd(x.d)})</b>
     <div>${x.why.map(w=>nm(w.N)+' מה'+(w.pv.t==='H'?'שיא':'שפל')+' של '+fd(w.pv.d)).join(' · ')}${x.why.length>1?' – כמה מחזורים נפגשים באותו תאריך, וגאן ראה בזה סימן חזק יותר.':'.'}</div>
     <div>מאז ה${up?'שפל':'שיא'} האחרון (${fd(x.last.d)}) המחיר ${up?'עולה':'יורד'}, ולכן אם תגיע תפנית – <span class="dir ${up?'down':'up'}">${up?'כנראה כלפי מטה ↘':'כנראה כלפי מעלה ↗'}</span>.</div>
-    <div class="hint">במניה הזו המחזורים בעבר: <span class="wt ${x.verdict[1]}">${x.verdict[0]}</span></div></div>`;
+    <div class="hint">במניה הזו המחזורים בעבר: <span class="wt ${x.verdict[1]}">${x.verdict[0]}</span></div>
+    <div class="hint">💡 מה זה אומר: תאריך גאן לא קובע לאן המחיר ילך, רק מתי לשים לב. אם בימים האלה המגמה נעצרת ומתהפכת, זה סימן שהתפנית אמיתית; אם המחיר ממשיך באותו כיוון בלי לעצור, הסימן פשוט לא התממש.</div></div>`;
 }
 function statusTxt(){
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
@@ -1139,7 +1142,7 @@ function renderAlert(){
 }
 function renderAlertsView(){
   const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
-    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · 📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div></div>`).join(''); }).join('');
+    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · 📐 ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
   const timeHtml=ALERT.items.map(alertItemHtml).join('');
   $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 החצי של גאן</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
