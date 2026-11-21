@@ -254,6 +254,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     </div>
     <div class="panel" id="timeSummary"></div>
     <div class="panel"><h3 style="margin-top:0">📅 תאריכים קרובים לשים לב אליהם</h3><p class="hint">המחזורים העיקריים של גאן – רבע, חצי, שלושה רבעים ושנה שלמה, וכפולות של שנה – בחודשיים הקרובים, מנקודות המפנה האחרונות של כל נכס. הם לא אומרים לאן המחיר ילך – רק מתי לשים לב.</p><div id="timeSoon"></div></div>
+    <div class="panel" id="corrBox"></div>
     <div class="panel"><h3 style="margin-top:0">🔍 כל נכס לחוד</h3><div id="timeAssets"></div></div>
     </div>
     <div id="tabSon" class="hidden">
@@ -777,7 +778,7 @@ function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
   const tItems=(ALERT.items||[]).filter(x=>x.s.sym===cur), hItems=(ALERT.half||{})[cur]||[];
-  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${g.kind==='son'?'🔢':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
+  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${g.kind==='son'?'🔢':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
   if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
   const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
     <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
@@ -985,7 +986,7 @@ function zigzag(v,T){
     else if(dir===1){ if(p>v[hiI][1]) hiI=i; else if(p<=v[hiI][1]*(1-T)){ piv.push({i:hiI,t:'H'}); dir=-1; loI=i; } }
     else { if(p<v[loI][1]) loI=i; else if(p>=v[loI][1]*(1+T)){ piv.push({i:loI,t:'L'}); dir=1; hiI=i; } }
   }
-  return piv.map(x=>({d:v[x.i][0], p:v[x.i][1], t:x.t, ms:new Date(v[x.i][0]+'T12:00:00').getTime()}));
+  return piv.map(x=>({i:x.i, d:v[x.i][0], p:v[x.i][1], t:x.t, ms:new Date(v[x.i][0]+'T12:00:00').getTime()}));
 }
 function hasNear(sorted,target,tol){ let lo=0,hi=sorted.length-1; while(lo<=hi){ const m=(lo+hi)>>1; if(sorted[m]<target-tol) lo=m+1; else if(sorted[m]>target+tol) hi=m-1; else return true; } return false; }
 function rng(seed){ return ()=>{ seed=(seed*1664525+1013904223)%4294967296; return seed/4294967296; }; }
@@ -1061,6 +1062,102 @@ function renderTime(){
       <div class="cmp"><span style="width:70px">מקרה</span><div class="b"><i style="width:${Math.round(b*100)}%;background:#8b96ad"></i></div><b>${pc(b)}</b></div></div>`; }).join('');
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('timeNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים.'):'הבדיקה רצה על כל ההיסטוריה.';
+  try{ renderCorr(); }catch(e){ $('corrBox').innerHTML='<p class="hint">לא הצלחתי לחשב את כלל התיקון.</p>'; }
+}
+
+/* ---------- Gann: a correction that lasts longer (or goes deeper) than all earlier ones in the rise ---------- */
+const CORR_T=[0.05,0.08,0.12]; const CORR_MAIN=0.08;
+function corrEvents(v,T){
+  // walks the turning points; inside a rise (higher highs and higher lows) every pullback is compared with the earlier pullbacks of the same rise
+  const P=zigzag(v,T), ev=[]; let adv=null, live=null;
+  for(let k=0;k<P.length;k++){
+    const x=P[k];
+    if(x.t==='L'){
+      if(!adv) { adv={low:x,hi:null,re:[]}; continue; }
+    } else {
+      if(!adv) continue;
+      if(adv.hi && x.p<=adv.hi.p){ adv={low:null,hi:null,re:[]}; adv=null; continue; } // lower high – the rise is over
+      adv.hi=x;
+      const L=P[k+1];
+      const prevLow=adv.low.p, H=x;
+      const R=adv.re.slice();
+      if(!L){ // decline still going on
+        if(R.length>=2) live={H, prevLow, maxDur:Math.max(...R.map(r=>r.dur)), maxDep:Math.max(...R.map(r=>r.dep))};
+        break;
+      }
+      const dur=Math.round((L.ms-H.ms)/864e5), dep=(H.p-L.p)/H.p;
+      if(R.length>=2){
+        const nextH=P[k+2]; let ended=null;
+        if(L.p<=prevLow) ended=true; else if(nextH) ended=!(nextH.p>H.p);
+        if(ended!==null) ev.push({dur,dep,maxDur:Math.max(...R.map(r=>r.dur)),maxDep:Math.max(...R.map(r=>r.dep)),ended});
+      }
+      if(L.p<=prevLow){ adv={low:L,hi:null,re:[]}; k++; continue; } // lower low – a new rise may start from here
+      adv.re.push({dur,dep}); adv.low=L; k++;
+    }
+  }
+  return {ev, live};
+}
+function corrScore(E,key,thr){ let f=0,e=0; E.forEach((x,i)=>{ const t=thr?thr[i]:x['max'+key]; if(x[key.toLowerCase()]>t){ f++; if(x.ended) e++; } }); return {f,e,p:f?e/f:null}; }
+let corrCache={key:'',res:{}};
+function corrAnalysis(T){
+  const key=S.symbols.map(s=>s.sym+':'+((S.hist[s.sym]||{}).date||'')+':'+(((S.full[s.sym]||{}).values||[]).length)).join(',');
+  if(corrCache.key!==key) corrCache={key,res:{}};
+  if(corrCache.res[T]) return corrCache.res[T];
+  const per={}, all=[], groups=[];
+  S.symbols.forEach(s=>{ const r=corrEvents(seriesFor(s.sym),T); per[s.sym]=r; groups.push([all.length,r.ev.length]); r.ev.forEach(x=>all.push(x)); });
+  const base=all.length?all.filter(x=>x.ended).length/all.length:null;
+  const out={n:all.length,base,per};
+  [['Dur','dur'],['Dep','dep']].forEach(([K,k])=>{
+    const real=corrScore(all,K);
+    // chance: the same pullbacks, but each one compared with the earlier pullbacks of a different rise of the same asset
+    const r=rng(777), fk=[];
+    for(let t=0;t<100;t++){
+      const thr=new Array(all.length);
+      groups.forEach(([a,n])=>{ const idx=[...Array(n).keys()]; for(let i=n-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [idx[i],idx[j]]=[idx[j],idx[i]]; } idx.forEach((j,i)=>thr[a+i]=all[a+j]['max'+K]); });
+      fk.push(corrScore(all,K,thr).p||0);
+    }
+    const fb=fk.reduce((a,b)=>a+b,0)/fk.length, pv=real.p==null?1:fk.filter(x=>x>=real.p).length/fk.length;
+    out[k]={f:real.f,e:real.e,p:real.p,fake:fb,pv,pass:real.f>=15&&real.p!=null&&pv<=0.05&&real.p>=fb+0.1};
+  });
+  corrCache.res[T]=out; return out;
+}
+function corrValid(){
+  const m=corrAnalysis(CORR_MAIN), o=CORR_T.filter(t=>t!==CORR_MAIN).map(corrAnalysis);
+  return {dur:m.dur.pass&&o.some(x=>x.dur.pass), dep:m.dep.pass&&o.some(x=>x.dep.pass), m};
+}
+function corrNow(sym){
+  const R=corrAnalysis(CORR_MAIN), live=(R.per[sym]||{}).live; if(!live) return null;
+  const v=seriesFor(sym); if(!v.length) return null; const last=v[v.length-1];
+  const days=Math.round((new Date(last[0]+'T12:00:00')-live.H.ms)/864e5), dep=(live.H.p-last[1])/live.H.p;
+  return {live, days, dep, p:last[1], last:last[0], overDur:days>live.maxDur, overDep:dep>live.maxDep, durDay:addDays(live.H.d,live.maxDur+1)};
+}
+function corrSignal(sym){
+  const V=corrValid(), c=corrNow(sym); if(!c) return [];
+  const out=[], MEAN='💡 מה זה אומר: בעלייה בריאה התיקונים דומים זה לזה. תיקון שארוך או עמוק מכל התיקונים הקודמים הוא לפי גאן הסימן הראשון שהמגמה מתהפכת. זה לא אומר בוודאות שהעלייה נגמרה – רק שהסיכוי לכך גדל.';
+  if(V.dur&&c.overDur&&c.durDay>=addDays(today(),-45)) out.push({kind:'corrtime',dir:'down',short:'תיקון ארוך מהרגיל',
+    txt:`הירידה מהשיא של ${fd(c.live.H.d)} נמשכת כבר ${c.days} ימים – יותר מכל התיקונים הקודמים בעלייה הזו (הארוך ביותר היה ${c.live.maxDur} ימים).`, mean:MEAN});
+  if(V.dep&&c.overDep&&c.last>=addDays(today(),-45)) out.push({kind:'corrsize',dir:'down',short:'תיקון עמוק מהרגיל',
+    txt:`הירידה מהשיא של ${fd(c.live.H.d)} הגיעה ל־${Math.round(c.dep*100)}% – יותר מכל התיקונים הקודמים בעלייה הזו (העמוק ביותר היה ${Math.round(c.live.maxDep*100)}%).`, mean:MEAN});
+  return out;
+}
+function renderCorr(){
+  const V=corrValid(), R=V.m;
+  const row=(name,x,ok)=>`<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${ok?'⭐ ':''}<b>${name}</b></span><span class="wt ${ok?'wt0':'wt1'}">${ok?'עבר את הבדיקה':'לא עבר את הבדיקה'}</span></div>
+    ${x.f?`<div class="hint">קרה ${x.f} פעמים. אחרי זה העלייה נגמרה ב־${pc(x.p)} מהמקרים.</div>
+    <div class="cmp"><span style="width:70px">הכלל</span><div class="b"><i style="width:${Math.round((x.p||0)*100)}%;background:#ef4444"></i></div><b>${pc(x.p)}</b></div>
+    <div class="cmp"><span style="width:70px">מקרה</span><div class="b"><i style="width:${Math.round(x.fake*100)}%;background:#8b96ad"></i></div><b>${pc(x.fake)}</b></div>`:'<div class="hint">עדיין אין מספיק מקרים.</div>'}</div>`;
+  const now=S.symbols.map((s,idx)=>{ let c=null; try{ c=corrNow(s.sym); }catch(e){} if(!c) return '';
+    const L=look(s.sym,idx), bad=c.overDur||c.overDep;
+    return `<div class="leg" data-sym="${esc(s.sym)}">${bad?'🔴':'🟢'} ${L.i} <b>${esc(s.name)}</b> · יורד ${c.days} ימים (הכי ארוך עד היום ${c.live.maxDur}) · ירד ${Math.round(c.dep*100)}% (הכי עמוק עד היום ${Math.round(c.live.maxDep*100)}%)</div>`; }).filter(Boolean).join('');
+  $('corrBox').innerHTML=`<h3 style="margin-top:0">⏳ תיקון ארוך או עמוק מהרגיל</h3>
+    <div class="insight"><b>הכלל של גאן:</b> כשמניה בעלייה, התיקונים בדרך כלל דומים בזמן ובגודל. אם בא תיקון שנמשך יותר זמן מכל התיקונים הקודמים, או יורד יותר מכולם, זה הסימן הראשון שהמגמה מתהפכת.
+    <br><b>איך בדקתי:</b> מצאתי בכל העליות של כל הנכסים כל תיקון שהיו לפניו לפחות שני תיקונים, ובדקתי אם אחריו העלייה נגמרה – כלומר המחיר ירד מתחת לשפל הקודם או לא הצליח לעשות שיא חדש.
+    <br>🎲 <b>ההשוואה למקרה:</b> אותה בדיקה רצה מאה פעמים, כשכל תיקון מושווה לתיקונים של עלייה אחרת של אותו נכס. אם הכלל של גאן נכון, ההשוואה לעלייה עצמה צריכה לנבא הרבה יותר טוב.
+    <br>התראה אדומה תופיע רק מכלל שעבר את הבדיקה.</div>
+    <p class="hint">נבדקו ${R.n} תיקונים. בדרך כלל, אחרי תיקון כלשהו העלייה נגמרה ב־${pc(R.base)} מהמקרים.</p>
+    ${row('לפי זמן – תיקון ארוך מכל הקודמים',R.dur,V.dur)}${row('לפי גודל – תיקון עמוק מכל הקודמים',R.dep,V.dep)}
+    <h4>מה קורה עכשיו</h4>${now||'<p class="hint">כרגע אף נכס לא נמצא בתיקון בתוך עלייה.</p>'}`;
+  $('corrBox').querySelectorAll('.leg[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
 }
 let gannTab='half';
 $('gannTabs').onclick=e=>{ const t=e.target.dataset&&e.target.dataset.t; if(!t||e.target.disabled) return; gannTab=t; S.gannTab=t; save(); renderGann(); };
@@ -1229,7 +1326,7 @@ function renderAlert(){
   const hot={}, sig={}, half={};
   const add=(sym,g)=>{ (sig[sym]=sig[sym]||[]).push(g); hot[sym]=true; };
   if(A.ready) A.items.forEach(x=>{ if(!(sig[x.s.sym]||[]).some(g=>g.kind==='time')) add(x.s.sym,{kind:'time',dir:x.last.t==='L'?'down':'up',short:'תאריך גאן '+whenTxt(x)}); });
-  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
+  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} try{ h=h.concat(corrSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
   const nHalf=Object.keys(half).length;
   if(!A.ready) ALERT={status:nHalf?'ok':'wait',items:[],valid:[],hot,sig,half};
   else ALERT={status:(A.items.length||nHalf)?'ok':(!A.valid.length?'novalid':'none'), items:A.items, valid:A.valid, hot, sig, half};
@@ -1239,7 +1336,7 @@ function renderAlert(){
   // cards on the home screen
   document.querySelectorAll('#grid .card').forEach(c=>{ const sym=c.dataset.sym, on=!!hot[sym]; c.classList.toggle('gannhot',on);
     c.querySelectorAll('.hotb').forEach(b=>b.remove());
-    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':g.kind==='son'?'🔢 ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
+    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':g.kind==='son'?'🔢 ':g.kind.startsWith('corr')?'⏳ ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
     const cv=c.querySelector('canvas'); if(cv) spark(cv,sym); });
   // banner on the home screen – always says what is going on
   const box=$('gannAlert');
@@ -1255,9 +1352,9 @@ function renderAlert(){
 }
 function renderAlertsView(){
   const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
-    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
+    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
   const timeHtml=ALERT.items.map(alertItemHtml).join('');
-  $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר – החצי וריבוע התשע</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
+  $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר ותיקונים</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
 }
 
@@ -1275,7 +1372,7 @@ const sigPlugin={id:'sig',afterDatasetsDraw(chart){
     ctx.moveTo(ax,y0+t*30); ctx.lineTo(ax-17,y0+t*8); ctx.lineTo(ax-7,y0+t*8); ctx.lineTo(ax-7,y0-t*22); ctx.lineTo(ax+7,y0-t*22); ctx.lineTo(ax+7,y0+t*8); ctx.lineTo(ax+17,y0+t*8); ctx.closePath();
     ctx.stroke(); ctx.fill();
     ctx.font='bold 12px Heebo,Arial'; ctx.textAlign='center'; ctx.fillStyle=c;
-    const lab=(g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
+    const lab=(g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='corrtime'?'⏳ תיקון ארוך':g.kind==='corrsize'?'⏳ תיקון עמוק':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
     ctx.fillText(lab,ax,up?y0+22+15:y0-22-7);
   });
   ctx.restore();
