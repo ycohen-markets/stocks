@@ -220,7 +220,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
         <button data-t="half" class="on">1. החצי</button>
         <button data-t="time">2. מחזורי זמן</button>
         <button data-t="son">3. ריבוע התשע</button>
-        <button data-t="angles" disabled>4. זוויות · בקרוב</button>
+        <button data-t="ang">4. זוויות</button>
       </div>
     </div>
     <div id="tabHalf">
@@ -271,6 +271,21 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel" id="sonSummary"></div>
     <div class="panel"><h3 style="margin-top:0">🎯 הרמות הקרובות לכל נכס</h3><p class="hint">הרמות הקרובות מעל המחיר ומתחתיו, מחושבות מנקודת המפנה האחרונה. רמות שנבדקו ונמצאו טובות ממקרה מסומנות בכוכב.</p><div id="sonLevels"></div></div>
     <div class="panel"><h3 style="margin-top:0">🔍 כל נכס לחוד</h3><div id="sonAssets"></div></div>
+    </div>
+    <div id="tabAng" class="hidden">
+    <div class="panel">
+      <div class="insight">
+        <b>הכלל:</b> משפל או משיא חשוב מותחים קווים ישרים באלכסון, שזזים בקצב קבוע כל יום. הקו המרכזי זז יחידה אחת ביום, הקו התלול שתי יחידות, והקו המתון חצי יחידה. המחיר נוטה להיעצר ולהסתובב כשהוא פוגש קו כזה.
+        <br><b>הבעיה:</b> אף אחד לא יודע כמה זה "יחידה". לכן מצאתי לכל נכס את היחידה שהכי הוכיחה את עצמה בעבר – כאחוז מהמחיר ליום.
+        <br><b>איך בדקתי שזה לא מזל:</b> מי שמחפש את הקו הכי טוב תמיד ימצא קו שנראה מצוין על העבר. לכן חיפשתי את היחידה רק על שבעים האחוזים הראשונים של ההיסטוריה, ובדקתי אותה על שלושים האחוזים האחרונים, שהיא "לא ראתה".
+        <br>🎲 <b>ההשוואה למקרה:</b> על אותו חלק אחרון בדקתי גם מאתיים פעמים יחידות אקראיות. אם היחידה שנמצאה לא תופסת יותר נקודות מפנה מיחידה אקראית – הקווים לא עובדים, ואין מהם התראות.
+      </div>
+      <div class="row" style="margin-top:12px"><span>גודל נקודת מפנה:</span>
+        <select id="angMin"><option value="0.1">10%</option><option value="0.15">15%</option><option value="0.2">20%</option><option value="0.3">30%</option></select>
+        <button id="angLoadFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="angNote"></span></div>
+    </div>
+    <div class="panel" id="angSummary"></div>
+    <div class="panel"><h3 style="margin-top:0">📏 הקווים הקרובים לכל נכס</h3><p class="hint">הקווים מנקודות המפנה האחרונות, לפי היחידה הכי טובה של הנכס – ומה ערכם היום.</p><div id="angLevels"></div></div>
     </div>
   </section>
 
@@ -780,7 +795,7 @@ function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
   const tItems=(ALERT.items||[]).filter(x=>x.s.sym===cur), hItems=(ALERT.half||{})[cur]||[];
-  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${g.kind==='son'?'🔢':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
+  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${g.kind==='son'?'🔢':g.kind==='ang'?'📏':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
   if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
   const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
     <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
@@ -928,9 +943,10 @@ function riskFor(sym,x,st,legs,hs){
 }
 function renderGann(){
   [...$('gannTabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===gannTab));
-  $('tabHalf').classList.toggle('hidden',gannTab!=='half'); $('tabTime').classList.toggle('hidden',gannTab!=='time'); $('tabSon').classList.toggle('hidden',gannTab!=='son');
+  $('tabHalf').classList.toggle('hidden',gannTab!=='half'); $('tabTime').classList.toggle('hidden',gannTab!=='time'); $('tabSon').classList.toggle('hidden',gannTab!=='son'); $('tabAng').classList.toggle('hidden',gannTab!=='ang');
   if(gannTab==='time'){ renderTime(); return; }
   if(gannTab==='son'){ renderSon(); return; }
+  if(gannTab==='ang'){ renderAng(); return; }
   const minRise=parseFloat($('halfMin').value)||0.2;
   const all=[], rowsGood=[], rowsBad=[], rowsFew=[];
   S.symbols.forEach((s,idx)=>{
@@ -1257,6 +1273,73 @@ function renderSon(){
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
   $('sonNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים.'):'הבדיקה רצה על כל ההיסטוריה.';
 }
+
+/* ---------- Gann foundation 4: angles ---------- */
+const ANG_M=[0.5,1,2]; const ANG_TOL=0.01;
+const ANG_U=(()=>{ const a=[]; for(let i=0;i<25;i++) a.push(0.0005*Math.pow(40,i/24)); return a; })(); // 0.05% … 2% of the base price per day
+const angName=m=>m===1?'הקו המרכזי':m===2?'הקו התלול':'הקו המתון';
+function angLine(b,u,m,ms){ const d=(ms-b.ms)/864e5; const L=b.t==='L'?b.p*(1+u*m*d):b.p*(1-u*m*d); return L>b.p*0.05?L:null; }
+function angHit(piv,k,u){ for(let j=k-1;j>=Math.max(0,k-2);j--){ for(const m of ANG_M){ const L=angLine(piv[j],u,m,piv[k].ms); if(L&&Math.abs(piv[k].p-L)/L<=ANG_TOL) return true; } } return false; }
+function angCount(piv,u,from,to){ let n=0,h=0; for(let k=Math.max(1,from);k<to;k++){ n++; if(angHit(piv,k,u)) h++; } return {n,h}; }
+function angBest(piv,from,to){ let best=null; ANG_U.forEach((u,i)=>{ const c=angCount(piv,u,from,to); if(!best||c.h>best.h) best={u,i,h:c.h,n:c.n}; }); return best; }
+const angCache={};
+function angAnalysis(T){
+  const key=S.symbols.map(s=>s.sym+':'+((S.hist[s.sym]||{}).date||'')+':'+(((S.full[s.sym]||{}).values||[]).length)).join(',');
+  if(angCache[T]&&angCache[T].key===key) return angCache[T].res;
+  const per={}, rows=[];
+  S.symbols.forEach(s=>{
+    const piv=zigzag(seriesFor(s.sym),T); const cut=Math.floor(piv.length*0.7);
+    const all=piv.length>=4?angBest(piv,1,piv.length):null;
+    let test=null;
+    if(piv.length>=12){ const tr=angBest(piv,1,cut); const byU=ANG_U.map(u=>angCount(piv,u,cut,piv.length).h); test={u:tr.u,trainH:tr.h,trainN:tr.n,n:piv.length-cut,h:byU[tr.i],byU}; rows.push(test); }
+    per[s.sym]={piv,all,test};
+  });
+  const N=rows.reduce((a,r)=>a+r.n,0), H=rows.reduce((a,r)=>a+r.h,0);
+  const r=rng(4242), fk=[];
+  for(let t=0;t<200;t++){ let h=0; rows.forEach(x=>{ h+=x.byU[Math.floor(r()*ANG_U.length)]; }); fk.push(h); }
+  const base=fk.length?fk.reduce((a,b)=>a+b,0)/fk.length:0, pv=fk.length?fk.filter(x=>x>=H).length/fk.length:1;
+  const pass=N>=30&&H>=Math.max(base,2)*1.3&&pv<=0.05;
+  const res={per,N,H,base,pv,pass}; angCache[T]={key,res}; return res;
+}
+function angValid(T){ const R=angAnalysis(T); return R.pass&&[0.1,0.15,0.2].filter(x=>Math.abs(x-T)>1e-9).some(x=>angAnalysis(x).pass); }
+function angNear(sym,R){
+  const r=R.per[sym]; if(!r||!r.all||r.piv.length<2) return null;
+  const v=seriesFor(sym); if(!v.length) return null; const last=v[v.length-1], ms=new Date(last[0]+'T12:00:00').getTime(), p=last[1];
+  const lines=[]; r.piv.slice(-2).forEach(b=>ANG_M.forEach(m=>{ const L=angLine(b,r.all.u,m,ms); if(L) lines.push({b,m,L}); }));
+  const above=lines.filter(x=>x.L>p).sort((a,b)=>a.L-b.L).slice(0,2), below=lines.filter(x=>x.L<=p).sort((a,b)=>b.L-a.L).slice(0,2);
+  return {p,u:r.all.u,lines,above,below};
+}
+function angSignal(sym){
+  const T=parseFloat(S.angMin)||0.15; if(!angValid(T)) return [];
+  const R=angAnalysis(T), nl=angNear(sym,R); if(!nl) return [];
+  const hit=nl.lines.filter(x=>Math.abs(nl.p-x.L)/x.L<=ANG_TOL).sort((a,b)=>Math.abs(nl.p-a.L)-Math.abs(nl.p-b.L))[0]; if(!hit) return [];
+  const sup=nl.p>=hit.L;
+  return [{kind:'ang',dir:sup?'up':'down',short:'על קו של גאן',
+    txt:`המחיר (${fmt(nl.p)}) נמצא על ${angName(hit.m)} שיוצא מה${hit.b.t==='L'?'שפל':'שיא'} של ${fd(hit.b.d)} (${fmt(hit.b.p)}). הקו נמצא ${sup?'מתחת למחיר – רצפה אפשרית':'מעל המחיר – תקרה אפשרית'}.`,
+    mean:'💡 מה זה אומר: קו של גאן הוא מקום שבו המחיר נוטה להיעצר. אם המחיר נוגע בקו ומסתובב – הקו עבד. אם הוא חוצה אותו בבירור – גאן אומר שהוא ימשיך עד הקו הבא.'}];
+}
+const uTxt=u=>(u*100).toFixed(u<0.001?3:2)+'% ליום';
+function renderAng(){
+  const T=parseFloat($('angMin').value)||0.15, R=angAnalysis(T), ok=angValid(T);
+  const line=R.N<30?'אין עדיין מספיק נקודות מפנה בחלק האחרון של ההיסטוריה כדי לקבוע.':ok?'הקווים עם היחידה שנמצאה תפסו בחלק ש"לא ראו" יותר נקודות מפנה מיחידות אקראיות – גם בגודל נקודת מפנה אחר. לכן הם מופיעים בנקודות גאן.':R.pass?'בגודל הזה הקווים ניצחו את המקרה, אבל בגדלים אחרים לא – כנראה מזל. לכן אין מהם התראות.':'הקווים עם היחידה "הכי טובה" לא תפסו בחלק האחרון יותר מקווים עם יחידה אקראית. כלומר היחידה נראתה טובה בעבר רק במקרה – ולכן אין מהם התראות.';
+  $('angSummary').innerHTML=`<h3 style="margin-top:0">📊 מה יצא בכל הנכסים יחד</h3>
+    <div class="sumgrid">
+      <div class="gbox"><div class="big">${R.N}</div><div class="hint">נקודות מפנה בחלק האחרון</div></div>
+      <div class="gbox"><div class="big">${R.H}</div><div class="hint">נגעו בקו של גאן</div></div>
+      <div class="gbox"><div class="big">${Math.round(R.base)}</div><div class="hint">היו נוגעות גם עם יחידה אקראית</div></div>
+    </div>
+    <div class="insight" style="margin-top:10px">${ok?'⭐ ':''}<b>בשורה התחתונה:</b> ${line}</div>`;
+  $('angLevels').innerHTML=S.symbols.map((s,idx)=>{ const nl=angNear(s.sym,R); if(!nl) return ''; const L=look(s.sym,idx), t=R.per[s.sym].test;
+    const row=x=>`<div class="r" style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>${angName(x.m)} מה${x.b.t==='L'?'שפל':'שיא'} של ${fd(x.b.d)}</span><b dir="ltr">${fmt(x.L)}</b></div>`;
+    return `<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${L.i} <b>${esc(s.name)}</b></span><span>עכשיו <b dir="ltr">${fmt(nl.p)}</b></span></div>
+      <div class="hint">היחידה הכי טובה: ${uTxt(nl.u)}${t?` · בחלק האחרון נגע בקו ${t.h} מתוך ${t.n} פעמים`:''}</div>
+      <div class="hint" style="margin-top:4px">▲ מעל:</div>${nl.above.map(row).join('')||'<div class="hint">—</div>'}
+      <div class="hint" style="margin-top:4px">▼ מתחת:</div>${nl.below.map(row).join('')||'<div class="hint">—</div>'}</div>`; }).join('')||'<p class="hint">ממתין לנתונים.</p>';
+  const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
+  $('angNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים.'):'הבדיקה רצה על כל ההיסטוריה.';
+}
+$('angMin').onchange=()=>{ S.angMin=$('angMin').value; save(); renderGann(); scheduleAlert(); };
+$('angLoadFull').onclick=()=>$('loadAllFull').onclick();
 $('sonMin').onchange=()=>{ S.sonMin=$('sonMin').value; save(); renderGann(); scheduleAlert(); };
 $('sonLoadFull').onclick=()=>$('loadAllFull').onclick();
 
@@ -1328,7 +1411,7 @@ function renderAlert(){
   const hot={}, sig={}, half={};
   const add=(sym,g)=>{ (sig[sym]=sig[sym]||[]).push(g); hot[sym]=true; };
   if(A.ready) A.items.forEach(x=>{ if(!(sig[x.s.sym]||[]).some(g=>g.kind==='time')) add(x.s.sym,{kind:'time',dir:x.last.t==='L'?'down':'up',short:'תאריך גאן '+whenTxt(x)}); });
-  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} try{ h=h.concat(corrSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
+  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} try{ h=h.concat(corrSignal(s.sym)); }catch(e){} try{ h=h.concat(angSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
   const nHalf=Object.keys(half).length;
   if(!A.ready) ALERT={status:nHalf?'ok':'wait',items:[],valid:[],hot,sig,half};
   else ALERT={status:(A.items.length||nHalf)?'ok':(!A.valid.length?'novalid':'none'), items:A.items, valid:A.valid, hot, sig, half};
@@ -1338,7 +1421,7 @@ function renderAlert(){
   // cards on the home screen
   document.querySelectorAll('#grid .card').forEach(c=>{ const sym=c.dataset.sym, on=!!hot[sym]; c.classList.toggle('gannhot',on);
     c.querySelectorAll('.hotb').forEach(b=>b.remove());
-    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':g.kind==='son'?'🔢 ':g.kind.startsWith('corr')?'⏳ ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
+    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':g.kind==='son'?'🔢 ':g.kind==='ang'?'📏 ':g.kind.startsWith('corr')?'⏳ ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
     const cv=c.querySelector('canvas'); if(cv) spark(cv,sym); });
   // banner on the home screen – always says what is going on
   const box=$('gannAlert');
@@ -1354,7 +1437,7 @@ function renderAlert(){
 }
 function renderAlertsView(){
   const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
-    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
+    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':g.kind==='ang'?'📏':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
   const timeHtml=ALERT.items.map(alertItemHtml).join('');
   $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר ותיקונים</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
@@ -1374,7 +1457,7 @@ const sigPlugin={id:'sig',afterDatasetsDraw(chart){
     ctx.moveTo(ax,y0+t*30); ctx.lineTo(ax-17,y0+t*8); ctx.lineTo(ax-7,y0+t*8); ctx.lineTo(ax-7,y0-t*22); ctx.lineTo(ax+7,y0-t*22); ctx.lineTo(ax+7,y0+t*8); ctx.lineTo(ax+17,y0+t*8); ctx.closePath();
     ctx.stroke(); ctx.fill();
     ctx.font='bold 12px Heebo,Arial'; ctx.textAlign='center'; ctx.fillStyle=c;
-    const lab=(g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='corrtime'?'⏳ תיקון ארוך':g.kind==='corrsize'?'⏳ תיקון עמוק':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
+    const lab=(g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='ang'?'📏 זווית':g.kind==='corrtime'?'⏳ תיקון ארוך':g.kind==='corrsize'?'⏳ תיקון עמוק':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
     ctx.fillText(lab,ax,up?y0+22+15:y0-22-7);
   });
   ctx.restore();
@@ -1614,7 +1697,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiK
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
 if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
-$('timeMin').value=S.timeMin||'0.15'; $('sonMin').value=S.sonMin||'0.15'; gannTab=S.gannTab||'half';
+$('timeMin').value=S.timeMin||'0.15'; $('sonMin').value=S.sonMin||'0.15'; $('angMin').value=S.angMin||'0.15'; gannTab=S.gannTab||'half';
 renderGrid();
 initCache().then(()=>{
   renderGrid();
