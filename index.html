@@ -135,6 +135,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .legs{display:none;margin-top:8px}.open .legs{display:block}
 .leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
 .bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
+.combo{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55;background:#8b96ad1a;border-right:3px solid #8b96ad}.combo.cup{background:#22c55e22;border-right-color:#22c55e}.combo.cdown{background:#ef444422;border-right-color:#ef4444}.combo .lv{font-weight:700}
 .risk{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
 .risk.r0{background:#22c55e1a;border-right:3px solid #22c55e}.risk.r1{background:#eab3081a;border-right:3px solid #eab308}.risk.r2{background:#ef44441a;border-right:3px solid #ef4444}
 .risk .lv{font-weight:700;font-size:14px}
@@ -299,6 +300,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   </section>
 
   <section id="risk" class="hidden">
+    <div class="panel" id="comboBox"></div>
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">צמצום סיכונים ומיקוד מידע</h2><button id="riskBack">→ חזרה</button></div>
       <p class="hint">כאן רואים את כל הנכסים זה ליד זה, לפי מה שקרה להם בעבר ואיפה הם עומדים היום, כולל כלל החצי של גאן. רמת הסיכון היא סיכום חשבוני של המדדים, כלי לסדר את המחשבה ולא המלצה לקנות או למכור. גודל העלייה לבדיקת החצי נלקח ממה שנבחר במסך גאן.</p>
@@ -811,7 +813,33 @@ function renderStory(){
   $('storyPanel').innerHTML=h;
   $('storyPanel').classList.toggle('hidden', !(st.insight||st.fall||x||(ALERT.sig||{})[cur]));
 }
+
+/* ---------- combined Gann signal: do the tested signals agree? ---------- */
+const FAM={time:'⏰ תאריך גאן',half:'📐 החצי',halfprice:'📐 החצי',halfbreak:'📐 החצי',son:'🔢 ריבוע התשע',corrtime:'⏳ תיקון חריג',corrsize:'⏳ תיקון חריג',ang:'📏 זווית'};
+function gannCombo(sym){
+  const gs=(ALERT.sig||{})[sym]||[]; const fam={};
+  gs.forEach(g=>{ const f=FAM[g.kind]||g.kind; (fam[f]=fam[f]||{up:0,down:0})[g.dir]++; });
+  const up=[],down=[]; Object.entries(fam).forEach(([f,c])=>{ if(c.up>c.down) up.push(f); else if(c.down>c.up) down.push(f); });
+  const n=up.length+down.length;
+  let lv,name,cls='';
+  if(!n){ lv=0; name='שום דבר מיוחד'; }
+  else if(up.length&&down.length){ lv=1; name='הסימנים סותרים – אין כיוון ברור'; }
+  else if(n===1){ lv=1; name='סימן אחד בלבד – לא מספיק כדי להסיק'; cls=up.length?'cup':'cdown'; }
+  else if(n===2){ lv=2; name=up.length?'▲ אות חזק כלפי מעלה':'▼ אות חזק כלפי מטה'; cls=up.length?'cup':'cdown'; }
+  else { lv=3; name=up.length?'▲▲ הזדמנות נדירה – רוב השיטות מסכימות על עלייה':'▼▼ אזהרה חזקה – רוב השיטות מסכימות על ירידה'; cls=up.length?'cup':'cdown'; }
+  return {lv,name,cls,up,down,n};
+}
+function comboHtml(c){ return `<div class="combo ${c.cls}"><div class="lv">🧭 האות המשולב של גאן: ${c.name}</div>${c.up.length?'<div>▲ בעד עלייה: '+c.up.join(', ')+'</div>':''}${c.down.length?'<div>▼ בעד ירידה: '+c.down.join(', ')+'</div>':''}</div>`; }
+function renderCombo(){
+  const rows=S.symbols.map((s,idx)=>({s,idx,c:gannCombo(s.sym)})).filter(x=>x.c.lv>=2).sort((a,b)=>b.c.lv-a.c.lv);
+  $('comboBox').innerHTML=`<h3 style="margin-top:0">🧭 האות המשולב של גאן</h3>
+    <p class="hint">כאן מתחברים כל ארבעת היסודות: החצי, מחזורי הזמן, ריבוע התשע והזוויות, וגם כלל התיקון החריג. מזמן, מריבוע התשע, מהזוויות ומהתיקון החריג נספרים רק סימנים שעברו את הבדיקה מול המקרה. סימן החצי נשען על מה שקרה בעבר באותה מניה. כששתי שיטות שונות או יותר מצביעות לאותו כיוון – זה אות חזק. כששלוש או יותר מסכימות – זה נדיר, ומסומן כהזדמנות או כאזהרה.</p>
+    ${rows.length?rows.map(({s,idx,c})=>{ const L=look(s.sym,idx); return `<div class="al" data-sym="${esc(s.sym)}" style="cursor:pointer"><b>${L.i} ${esc(s.name)}</b>${comboHtml(c)}</div>`; }).join(''):'<p><b>כרגע אין אף נכס שבו כמה שיטות מסכימות.</b> <span class="hint">זה המצב הרגיל – אותות חזקים נדירים.</span></p>'}
+    <p class="hint">חשוב: כל שיטה לחוד נבדקה, אבל השילוב עצמו עוד לא נבדק על העבר. זה כלי לשים לב, לא הבטחה ולא המלצה לקנות או למכור.</p>`;
+  $('comboBox').querySelectorAll('.al[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+}
 function renderRisk(){
+  try{ renderCombo(); }catch(e){ $('comboBox').innerHTML=''; }
   const g=$('riskGrid'); g.innerHTML='';
   const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
   GROUP_ORDER.filter(k=>groups[k]).forEach(k=>{
@@ -836,7 +864,7 @@ function renderRisk(){
       if(x){ const r=riskFor(s.sym,x,hst,legs,hs);
         rk=`<div class="risk r${r.lv}"><div class="lv">רמת סיכון: ${r.name}</div>${r.bad.map(t=>'<div>⚠️ '+t+'</div>').join('')}${r.good.map(t=>'<div>👍 '+t+'</div>').join('')}</div>`; }
       c.innerHTML=`<div class="top"><span class="ttl"><span class="ic">${L.i}</span><span class="nm">${esc(s.name)}</span></span><span class="tk">${esc(s.sym)}</span></div>
-        <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>${rk}`;
+        <div class="desc">${descOf(s.sym)}</div><div class="chips">${chips}</div>${(()=>{ try{ return comboHtml(gannCombo(s.sym)); }catch(e){ return ''; } })()}${rk}`;
       c.onclick=()=>openDetail(s.sym);
       g.appendChild(c);
     });
