@@ -185,7 +185,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
       <label>מפתח גישה: <input id="keyEdit" type="password" autocomplete="off" style="direction:ltr;width:220px"></label><button id="keyShow" type="button">הצג</button>
       <label>רענון כל <select id="intervalSel"><option value="5">חמש דקות</option><option value="10">עשר דקות</option><option value="15">רבע שעה</option><option value="30">חצי שעה</option></select></label>
     </div>
-    <p class="hint">בחשבון החינמי יש מגבלה של כשמונה מאות בקשות ביום ושמונה בדקה. עם שלושים נכסים, רענון כל רבע שעה מספיק לבערך שש שעות ביום, וכל חצי שעה ליום שלם; האפליקציה עוצרת את הרענון כשהלשונית מוסתרת כדי לחסוך.</p>
+    <p class="hint" id="quotaHint"></p>
     <h3>הנכסים</h3>
     <div class="sym-row hint" style="margin-bottom:2px"><span>שם בעברית</span><span>סימן מסחר באנגלית</span></div>
     <div id="symEdit"></div>
@@ -209,7 +209,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="alerts" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">⏰ מניות שהגיעו לנקודת גאן</h2><button id="alertsBack">→ חזרה</button></div>
-      <p class="hint">כאן מופיעות מניות שתאריך של גאן נופל אצלן מיומיים אחורה ועד שלושה ימים קדימה. מוצגים רק מחזורים שנבדקו על כל ההיסטוריה ותפסו לפחות פי אחד וחצי יותר נקודות מפנה ממספרים אקראיים, וגם ניצחו כמעט את כל מאה הגרסאות המזויפות – כדי שמזל לא ייחשב כהצלחה. הכיוון הוא ההיגיון של גאן – תפנית היא היפוך של המגמה הנוכחית – ולא תחזית. לחיצה על מניה פותחת אותה.</p>
+      <p class="hint">כאן מופיעות מניות שהגיעו לנקודה של גאן: תאריך של מחזור זמן (מיומיים אחורה ועד שלושה ימים קדימה), אזור החצי, רמה של ריבוע התשע, קו של זווית, או תיקון ארוך או עמוק מהרגיל. ממחזורי הזמן, מריבוע התשע, מהזוויות ומכלל התיקון מוצגים רק כללים שעברו את הבדיקה מול המקרה על כל ההיסטוריה – כדי שמזל לא ייחשב כהצלחה. החץ מראה את הכיוון לפי ההיגיון של גאן, ולא תחזית. לחיצה על מניה פותחת אותה.</p>
       <div id="alertsList"></div>
     </div>
   </section>
@@ -543,13 +543,13 @@ async function loadIntra(sym){
 }
 async function loadFull(sym){
   const f=S.full[sym];
-  if(f && f.v===2 && f.date && (Date.now()-new Date(f.date).getTime())<7*86400e3 && f.values.length) return;
+  if(f && f.v===2 && f.date && (Date.now()-new Date(f.date).getTime())<7*86400e3 && f.values.length && (!f.note||f.ratio)) return;
   let vals=[];
   try{
     const j = await enqueue('/time_series?symbol='+encodeURIComponent(sym)+'&interval=1week&outputsize=5000', 1, true);
     vals=(j.values||[]).map(v=>[v.datetime.slice(0,10), parseFloat(v.close), parseFloat(v.high), parseFloat(v.low)]).reverse();
   }catch(e){ if(!LONG[sym]) throw e; }
-  let note='';
+  let note='', ratio=null;
   if(LONG[sym]){
     try{
       const long=await loadLong(LONG[sym]);
@@ -557,18 +557,18 @@ async function loadFull(sym){
         const L=long[long.length-1][0];
         const k=vals.findIndex(v=>v[0]>=L);
         if(k>=0){
-          const ratio=long[long.length-1][1]/vals[k][1];
+          ratio=long[long.length-1][1]/vals[k][1];
           vals=long.concat(vals.slice(k+1).map(v=>[v[0], +(v[1]*ratio).toFixed(2), +(v[2]*ratio).toFixed(2), +(v[3]*ratio).toFixed(2)]));
-        } else vals=long;
-        note=LONG[sym].note;
+          note=LONG[sym].note;
+        }
       }
     }catch(e){ console.warn('long history failed',e); }
   }
-  S.full[sym]={v:2, date:today(), values:vals, note}; save('full');
+  S.full[sym]={v:2, date:today(), values:vals, note, ratio}; save('full');
 }
 const LONG={
-  'SPY':{url:'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv', col:'SP500', note:'מדד אס אנד פי עצמו מאז אלף שמונה מאות שבעים ואחת (ממוצעים חודשיים), ובשנים האחרונות לפי הקרן'},
-  'GLD':{url:'https://raw.githubusercontent.com/datasets/gold-prices/main/data/monthly.csv', col:'Price', note:'מחיר אונקיית זהב בדולרים מאז אלף שמונה מאות שלושים ושלוש, ובשנים האחרונות לפי הקרן'}
+  'SPY':{url:'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv', col:'SP500', note:'לפני הקרן: המדד עצמו מאז 1871 (ממוצעים חודשיים), מותאם למחיר של הקרן'},
+  'GLD':{url:'https://raw.githubusercontent.com/datasets/gold-prices/main/data/monthly.csv', col:'Price', note:'לפני הקרן: מחיר הזהב עצמו מאז 1833 (ממוצעים חודשיים), מותאם למחיר של הקרן'}
 };
 async function loadLong(cfg){
   const t=await (await fetch(cfg.url)).text();
@@ -768,11 +768,27 @@ const gannPlugin={id:'gann',afterDatasetsDraw(chart){
 
 /* ---------- history stats, stories, risk view ---------- */
 const WCLASS={'נמוך':'wt0','בינוני':'wt1','גבוה':'wt2','גבוה מאוד':'wt3'};
+/* For the S&P and gold the very long history is the index / ounce price itself. It is converted to the fund's own
+   units, so that it joins the daily data and today's price – one continuous series in the price shown on the card. */
+const fullConv={};
+function fullFor(sym){
+  const F=S.full[sym]; if(!F||!F.values||!F.values.length) return [];
+  if(!F.note) return F.values;
+  const key=F.values.length+'|'+(F.ratio||'')+'|'+((S.hist[sym]||{}).date||''); if(fullConv[sym]&&fullConv[sym].key===key) return fullConv[sym].v;
+  let r=F.ratio;
+  if(!r){ // older saved data: work the factor out from the weeks that overlap the daily data
+    const h=S.hist[sym]&&S.hist[sym].values||[]; const rs=[];
+    if(h.length) F.values.slice(-30).forEach((w,i,a)=>{ const end=addDays(w[0],6), nxt=a[i+1]?a[i+1][0]:'9'; let best=null; for(const x of h){ if(x[0]>=w[0]&&x[0]<=end&&x[0]<nxt) best=x; } if(best&&best[1]>0) rs.push(w[1]/best[1]); });
+    if(rs.length>=3){ rs.sort((a,b)=>a-b); r=rs[Math.floor(rs.length/2)]; }
+  }
+  if(!(r>0)){ fullConv[sym]={key,v:[]}; return []; }
+  const v=F.values.map(x=>[x[0],x[1]/r,x[2]!=null?x[2]/r:null,x[3]!=null?x[3]/r:null]);
+  fullConv[sym]={key,v}; return v;
+}
 function seriesFor(sym){
-  const f=S.full[sym]&&S.full[sym].values||[], h=S.hist[sym]&&S.hist[sym].values||[];
+  const f=fullFor(sym), h=S.hist[sym]&&S.hist[sym].values||[];
   let v=(f.length&&f[0][0]<(h[0]||['9'])[0]) ? f.filter(x=>!h.length||x[0]<h[0][0]).concat(h) : h.slice();
-  if(S.full[sym]&&S.full[sym].note) v=f.slice();
-  const q=S.quotes[sym]; if(q&&q.price&&!(S.full[sym]&&S.full[sym].note)){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
+  const q=S.quotes[sym]; if(q&&q.price){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
   return v.filter(x=>x[1]>0);
 }
 function statsFor(sym){
@@ -958,9 +974,9 @@ function renderRisk(){
 let loadingAll=false;
 $('loadAllFull').onclick=async()=>{
   if(loadingAll) return; loadingAll=true;
-  const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2));
+  const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2&&(!S.full[s.sym].note||S.full[s.sym].ratio)));
   const upd=()=>VIEWS.forEach(v=>{ if(!$(v).classList.contains('hidden')) RENDER[v](); });
-  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; $('timeNote').textContent=msg; $('sonNote').textContent=msg; }
+  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; $('timeNote').textContent=msg; $('sonNote').textContent=msg; $('angNote').textContent=msg; }
   loadingAll=false; upd();
 };
 
@@ -980,7 +996,7 @@ function trendFor(sym){
 function renderTrend(){
   const rows=[], others=[], wait=[];
   const young=[];
-  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); const h=S.hist[s.sym]&&S.hist[s.sym].values||[]; if(!t){ if(h.length>=40) young.push(s.name); else wait.push(s.name); } else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
+  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); const h=S.hist[s.sym]&&S.hist[s.sym].values||[]; if(!t){ if(h.length&&S.hist[s.sym].date) young.push(s.name); else wait.push(s.name); } else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
   rows.sort((a,b)=>b[2].ch6-a[2].ch6);
   if(!rows.length){ $('trendTable').innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
   else $('trendTable').innerHTML=`<table class="ttable"><tr><th>נכס</th><th>חצי שנה</th><th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
@@ -1366,7 +1382,7 @@ function sonSignal(sym){
   if(!hitL) return [];
   const rising=nl.last.t==='L';
   return [{kind:'son',dir:rising?'down':'up',short:'ברמת ריבוע התשע',
-    txt:`המחיר (${fmt(nl.p)}) הגיע לרמה ${fmt(hitL.L)} – ${degName(hitL.d)} ${hitL.sg>0?'מעל':'מתחת ל'}${rising?'שפל':'שיא'} של ${fd(nl.last.d)} (${fmt(nl.last.p)}). מאז המחיר ${rising?'עולה, ולכן זו תקרה אפשרית':'יורד, ולכן זו רצפה אפשרית'}.`,
+    txt:`המחיר (${fmt(nl.p)}) הגיע לרמה ${fmt(hitL.L)} – ${degName(hitL.d)} ${hitL.sg>0?'מעל ל':'מתחת ל'}${rising?'שפל':'שיא'} של ${fd(nl.last.d)} (${fmt(nl.last.p)}). מאז המחיר ${rising?'עולה, ולכן זו תקרה אפשרית':'יורד, ולכן זו רצפה אפשרית'}.`,
     mean:'💡 מה זה אומר: רמה של ריבוע התשע היא מחיר שבו גאן ציפה שהמניה תיעצר. אם המחיר נעצר כאן ומסתובב – הרמה עבדה; אם הוא עובר אותה בבירור וממשיך – הוא כנראה בדרך לרמה הבאה.'}];
 }
 function renderSon(){
@@ -1527,7 +1543,7 @@ function alertItemHtml(x){
 function statusTxt(){
   const nm=N=>N>=720&&N%360===0?(N/360)+' שנים':N+' יום';
   if(ALERT.status==='wait') return 'עדיין אין מספיק נתונים כדי לבדוק אילו מחזורים עובדים. צריך לטעון פעם אחת את ההיסטוריה המלאה – בכפתור כאן למטה.';
-  if(ALERT.status==='novalid') return 'בנתונים שלך אף מחזור זמן לא תפס נקודות מפנה יותר ממקרה, ולכן אין כרגע תזכורות.';
+  if(ALERT.status==='novalid') return 'אין כרגע מניות בנקודת גאן. מחזורי הזמן לא תפסו בנתונים שלך יותר ממקרה, ולכן מהם לא יהיו תזכורות – אבל נקודות מחיר של גאן ימשיכו להופיע כשיגיעו.';
   if(ALERT.status==='none') return 'אין כרגע מניות בנקודת גאן. המחזורים שנמצאו טובים ממקרה: '+ALERT.valid.map(nm).join(', ')+'.';
   return '';
 }
@@ -1564,8 +1580,9 @@ function renderAlertsView(){
   const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
     return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':g.kind==='ang'?'📏':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
   const timeHtml=ALERT.items.map(alertItemHtml).join('');
-  $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר ותיקונים</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>`;
+  $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר ותיקונים</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>${ALERT.status==='wait'?'<button id="alertLoad2" class="pri">טען עכשיו את ההיסטוריה המלאה</button>':''}`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+  const lb=$('alertLoad2'); if(lb) lb.onclick=()=>{ lb.textContent='טוען… בערך ארבע דקות, אפשר להמשיך להשתמש'; lb.disabled=true; $('loadAllFull').onclick(); };
 }
 
 /* ---------- big Gann arrows on the stock chart ---------- */
@@ -1597,11 +1614,12 @@ function stockBrief(sym){
   if(q.price!=null) L.push(`מחיר: ${fmt(q.price)}, שינוי יומי ${pct(q.pct)}.`);
   if(x){ L.push(`שיא כל הזמנים: ${fmt(x.ath.p)} (${fd(x.ath.d)}); היום ${pct(x.cur*100)} מהשיא.`);
     if(x.mddTrough) L.push(`הנפילה הכי עמוקה בנתונים: ${pct(x.mdd*100)} (${fd(x.mddPeak[0])} עד ${fd(x.mddTrough[0])}).`);
-    if(x.vol!=null) L.push(`תנודתיות שנתית: ${Math.round(x.vol*100)}%. ${x.above?'מעל':'מתחת ל'}אמצע השנה האחרונה.`); }
+    if(x.vol!=null) L.push(`תנודתיות שנתית: ${Math.round(x.vol*100)}%. ${x.above?'מעל ':'מתחת ל'}אמצע השנה האחרונה.`); }
   try{ const legs=halfLegs(sym,parseFloat(S.halfMin)||0.2), hs=halfStats(legs), hn=halfNow(legs,sym);
     if(hs.n) L.push(`כלל החצי של גאן: בעבר התיקון נעצר מעל החצי ב־${pc(hs.pHeld)} מתוך ${hs.n} מקרים.`);
     if(hn) L.push(`עכשיו: ${hn.state==='above'?'בתיקון ומעל החצי':hn.state==='below'?'בתיקון ומתחת לחצי':'שבר את החצי'} (חצי: ${fmt(hn.mid)}).`); }catch(e){}
   ((ALERT.sig||{})[sym]||[]).forEach(g=>L.push(`סימן גאן פעיל: ${g.short} – כיוון ${g.dir==='up'?'למעלה':'למטה'}.`));
+  try{ const c=gannCombo(sym); if(c.n) L.push(`האות המשולב של גאן: ${c.name}.`); }catch(e){}
   if(st.fall) L.push(`הנפילה הגדולה בהיסטוריה: ${st.fall.when} – ${st.fall.phys}.`);
   if(st.rise) L.push(`העלייה הגדולה: ${st.rise.when} – ${st.rise.phys}.`);
   const notes=(S.notes[sym]||[]).slice(-5); if(notes.length) L.push('הסימונים שלי: '+notes.map(n=>`${n.label}: ${n.text}`).join(' | '));
@@ -1664,7 +1682,7 @@ window.addEventListener('popstate',()=>{
 });
 $('ranges').onclick=e=>{ const r=e.target.dataset.r; if(!r) return; range=r; setTimeout(renderDetail,0);
   if(r==='ticks'){ const sym=cur; loadIntra(sym).then(()=>{ if(cur===sym&&range==='ticks') renderDetail(); }).catch(err=>setStatus('לא הצלחתי לטעון את מהלך היום: '+err.message)); }
-  if(r==='max'){ const sym=cur; setStatus('טוען היסטוריה מלאה…'); loadFull(sym).then(()=>{ if(cur===sym){ renderDetail(); const v=S.full[sym].values; if(v.length) setStatus('היסטוריה מלאה מתאריך '+v[0][0].split('-').reverse().join('/')+(S.full[sym].note?' · '+S.full[sym].note:'')); } }).catch(err=>setStatus('לא הצלחתי לטעון היסטוריה מלאה: '+err.message)); } };
+  if(r==='max'){ const sym=cur; setStatus('טוען היסטוריה מלאה…'); loadFull(sym).then(()=>{ if(cur===sym){ renderDetail(); const v=S.full[sym].values; if(v.length) setStatus('היסטוריה מלאה מתאריך '+v[0][0].split('-').reverse().join('/')+(LONG[sym]&&S.full[sym].note?' · '+LONG[sym].note:'')); } }).catch(err=>setStatus('לא הצלחתי לטעון היסטוריה מלאה: '+err.message)); } };
 
 function buildSeries(){
   if(range==='ticks'){
@@ -1674,10 +1692,10 @@ function buildSeries(){
     else { const d0=new Date(); d0.setHours(0,0,0,0); arr=t.filter(p=>p[0]>=d0.getTime()); if(arr.length<2) arr=t.slice(-200); }
     return arr.map(p=>({label:new Date(p[0]).toLocaleString('he-IL',{weekday:'short',hour:'2-digit',minute:'2-digit'}), ts:p[0], day:new Date(p[0]).toISOString().slice(0,10), v:p[1], hi:p[1], lo:p[1]}));
   }
-  const src = range==='max' ? S.full[cur] : S.hist[cur];
-  let h=((src&&src.values)||[]).slice();
+  let h=(range==='max' ? fullFor(cur) : ((S.hist[cur]&&S.hist[cur].values)||[])).slice();
+  if(range==='max'){ const hd=(S.hist[cur]&&S.hist[cur].values)||[]; const lastD=h.length?h[h.length-1][0]:''; const wk=addDays(lastD||'1900-01-01',7); hd.forEach(x=>{ if(x[0]>=wk&&(!h.length||x[0]>h[h.length-1][0])) h.push(x); }); }
   const q=S.quotes[cur];
-  if(q&&q.price&&!(range==='max'&&src&&src.note)){ const qd=q.d||today(); const row=[qd,q.price,isNaN(q.high)?q.price:q.high,isNaN(q.low)?q.price:q.low]; if(h.length&&h[h.length-1][0]===qd) h[h.length-1]=row; else if(!h.length||h[h.length-1][0]<qd) h.push(row); }
+  if(q&&q.price){ const qd=q.d||today(); const row=[qd,q.price,isNaN(q.high)?q.price:q.high,isNaN(q.low)?q.price:q.low]; if(h.length&&h[h.length-1][0]===qd) h[h.length-1]=row; else if(!h.length||h[h.length-1][0]<qd) h.push(row); }
   if(range!=='all' && range!=='max') h=h.slice(-parseInt(range));
   return h.map(v=>({label:v[0].split('-').reverse().join('/'), ts:new Date(v[0]+'T12:00:00').getTime(), day:v[0], v:v[1], hi:(v[2]==null||isNaN(v[2]))?v[1]:v[2], lo:(v[3]==null||isNaN(v[3]))?v[1]:v[3]}));
 }
@@ -1747,8 +1765,8 @@ function renderNotes(){
   ns.forEach(n=>{
     const since = q&&q.price ? (q.price-n.price)/n.price*100 : null;
     const d=document.createElement('div'); d.className='note';
-    d.innerHTML=`<span class="dot" style="background:${n.color}"></span>
-      <div class="tx"><div>${esc(n.text)}</div><div class="when">${n.label} · במחיר ${fmt(n.price)}${since!=null?` · מאז: <span class="${since>=0?'up':'down'}" style="direction:ltr;unicode-bidi:isolate">${pct(since)}</span>`:''}</div></div>
+    d.innerHTML=`<span class="dot" style="background:${esc(n.color)}"></span>
+      <div class="tx"><div>${esc(n.text)}</div><div class="when">${esc(n.label)} · במחיר ${fmt(n.price)}${since!=null?` · מאז: <span class="${since>=0?'up':'down'}" style="direction:ltr;unicode-bidi:isolate">${pct(since)}</span>`:''}</div></div>
       <button data-id="${n.id}">מחק</button>`;
     d.querySelector('button').onclick=()=>{ if(d.dataset.c){ S.notes[cur]=S.notes[cur].filter(x=>x.id!==n.id); save(); renderDetail(); } else { d.dataset.c=1; d.querySelector('button').textContent='בטוח?'; } };
     $('notes').appendChild(d);
@@ -1776,6 +1794,8 @@ function showSettings(){
   history.pushState({layer:'settings'},''); $('settings').classList.remove('hidden'); window.scrollTo(0,0);
   $('keyEdit').value=S.apiKey; $('keyEdit').type='password'; $('keyShow').textContent='הצג';
   $('intervalSel').value=String(S.interval); if($('intervalSel').value!==String(S.interval)) $('intervalSel').value='15';
+  { const n=S.symbols.length, runs=Math.max(0,Math.floor((800-n)/n)), hrs=m=>Math.round(runs*m/60);
+    $('quotaHint').textContent='בחשבון החינמי יש מגבלה של שמונה מאות בקשות ביום ושמונה בדקה. כל רענון עולה בקשה אחת לכל נכס, ויש לך '+n+' נכסים – כלומר בערך '+runs+' רענונים ביום. רענון כל רבע שעה מספיק לבערך '+hrs(15)+' שעות, וכל חצי שעה לבערך '+hrs(30)+' שעות. האפליקציה עוצרת את הרענון כשהיא סגורה או מוסתרת, כדי לחסוך.'; }
   $('setErr').textContent='';
   $('symEdit').innerHTML=''; S.symbols.forEach(s=>$('symEdit').appendChild(symRow(s.name,s.sym)));
 }
