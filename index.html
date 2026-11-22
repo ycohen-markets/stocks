@@ -788,7 +788,7 @@ function fullFor(sym){
   const v=F.values.map(x=>[x[0],x[1]/r,x[2]!=null?x[2]/r:null,x[3]!=null?x[3]/r:null]);
   fullConv[sym]={key,v,r}; return v;
 }
-function uP(sym,p){ const r=LONG[sym]?ratioOf(sym):null; return r?fmt(p*r)+(sym==='SPY'?' נקודות במדד':' $ לאונקיה'):fmt(p); }
+function uP(sym,p){ const r=LONG[sym]?ratioOf(sym):null; return r?fmt(p*r)+(sym==='SPY'?' נקודות במדד':' $ לאונקיה')+' (בקרן: $'+fmt(p)+')':fmt(p); }
 function ratioOf(sym){ fullFor(sym); return (fullConv[sym]&&fullConv[sym].r)||null;
 }
 function seriesFor(sym){
@@ -872,10 +872,10 @@ function renderStory(){
     // for the S&P and gold the long history is the index / the ounce itself, so the numbers are shown in those units
     const r=LONG[cur]?ratioOf(cur):null, U=p=>r?p*r:p;
     const unit=cur==='SPY'&&r?' נקודות':cur==='GLD'&&r?' $ לאונקיה':'';
-    const P=p=>`<b dir="ltr">${fmt(U(p))}</b>${unit}`;
+    const P=p=>`<b dir="ltr">${fmt(U(p))}</b>${unit}${r?` <span class="hint">(בקרן: <b dir="ltr">$${fmt(p)}</b>)</span>`:''}`;
     const down=x.ath.p-x.last;
     h+=`<h4>🔢 המספרים (לפי הנתונים מ־${fd(x.from)})</h4>
-    ${r?`<div class="hint">${cur==='SPY'?'כאן המספרים הם של מדד אס אנד פי עצמו, בנקודות':'כאן המספרים הם של מחיר הזהב עצמו, בדולרים לאונקיה'} – כי ההיסטוריה הארוכה היא שלו. מחיר הקרן היום: <b dir="ltr">${fmt(x.last)}</b>.</div>`:''}
+    ${r?`<div class="hint">${cur==='SPY'?'כאן המספרים הם של מדד אס אנד פי עצמו, בנקודות':'כאן המספרים הם של מחיר הזהב עצמו, בדולרים לאונקיה'} – כי ההיסטוריה הארוכה היא שלו. בסוגריים: כמה זה עולה בקרן הסל, בדולרים. ${cur==='SPY'?'הקרן קיימת רק מ־1993':'הקרן קיימת רק מ־2004'}, ולכן לפני כן זה חישוב של כמה היא הייתה עולה אילו הייתה קיימת.</div>`:''}
     <div class="kv">
       <div class="r"><span>השיא של כל הזמנים</span><span>${P(x.ath.p)} · ${fd(x.ath.d)}</span></div>
       <div class="r"><span>המחיר היום</span><span>${P(x.last)}</span></div>
