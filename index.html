@@ -1081,7 +1081,7 @@ function renderGann(){
     const L=look(s.sym,idx);
     const legsHtml=legs.map(l=>`<div class="leg">${l.outcome==='held'?'✅':l.outcome==='open'?'⏳':'❌'} עלייה מ־<b dir="ltr">${fmt(l.L[1])}</b> (${fd(l.L[0])}) ל־<b dir="ltr">${fmt(l.H[1])}</b> (${fd(l.H[0])}) · התיקון הגיע ל־<b dir="ltr">${fmt(l.m[1])}</b>, ${Math.round(l.depth*100)}% מהעלייה${l.outcome==='broke-recovered'?` · חזר לשיא אחרי ${l.days} ימים`:l.outcome==='broke-open'?' · עוד לא חזר לשיא':l.outcome==='open'?' · התיקון עדיין נמשך':''}</div>`).join('');
     const html=`<div class="gbox" style="margin-bottom:8px;cursor:pointer" data-sym="${esc(s.sym)}">
-      <div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span>${st.n} מקרים</span></div>
+      <div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span>${st.n===1?'מקרה אחד':st.n+' מקרים'}</span></div>
       ${st.n?`<div class="r"><span>כיבד את החצי</span><b>${pc(st.pHeld)}</b></div><div class="bar"><i style="width:${Math.round((st.pHeld||0)*100)}%"></i></div>
       <div class="r"><span>כששבר – כבר חזר לשיא חדש</span><b>${st.broke?pc(st.pRec)+' ('+st.rec+' מתוך '+st.broke+')':'—'}</b></div>
       <div class="r"><span>נשאר מעל חצי ממחיר השיא</span><b>${pc(st.pHP)}</b></div>`:''}
@@ -1215,7 +1215,7 @@ function renderTime(){
   const rows=S.symbols.map((s,idx)=>({s,idx,r:R.per[s.sym]})).filter(x=>x.r).sort((a,b)=>((b.r.n?b.r.hits/b.r.n:0)-(b.r.n?b.r.base/b.r.n:0))-((a.r.n?a.r.hits/a.r.n:0)-(a.r.n?a.r.base/a.r.n:0)));
   $('timeAssets').innerHTML=rows.map(({s,idx,r})=>{ const L=look(s.sym,idx); const [vv,cls]=verdict(r.pv,r.n); const a=r.n?r.hits/r.n:0, b=r.n?r.base/r.n:0;
     return `<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span class="wt ${cls}">${vv}</span></div>
-      <div class="hint">${r.n} נקודות מפנה</div>
+      <div class="hint">${r.n===1?'נקודת מפנה אחת':r.n+' נקודות מפנה'}</div>
       <div class="cmp"><span style="width:70px">גאן</span><div class="b"><i style="width:${Math.round(a*100)}%;background:#60a5fa"></i></div><b>${pc(a)}</b></div>
       <div class="cmp"><span style="width:70px">מקרה</span><div class="b"><i style="width:${Math.round(b*100)}%;background:#8b96ad"></i></div><b>${pc(b)}</b></div></div>`; }).join('');
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
@@ -1408,7 +1408,7 @@ function renderSon(){
   const rows=S.symbols.map((s,idx)=>({s,idx,r:R.per[s.sym]})).filter(x=>x.r).sort((a,b)=>((b.r.n?(b.r.hits-b.r.base)/b.r.n:0)-(a.r.n?(a.r.hits-a.r.base)/a.r.n:0)));
   $('sonAssets').innerHTML=rows.map(({s,idx,r})=>{ const L=look(s.sym,idx); const [vv,cls]=verdict(r.pv,r.n); const a=r.n?r.hits/r.n:0, b=r.n?r.base/r.n:0;
     return `<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span class="wt ${cls}">${vv}</span></div>
-      <div class="hint">${r.n} נקודות מפנה</div>
+      <div class="hint">${r.n===1?'נקודת מפנה אחת':r.n+' נקודות מפנה'}</div>
       <div class="cmp"><span style="width:70px">גאן</span><div class="b"><i style="width:${Math.round(a*100)}%;background:#60a5fa"></i></div><b>${pc(a)}</b></div>
       <div class="cmp"><span style="width:70px">מקרה</span><div class="b"><i style="width:${Math.round(b*100)}%;background:#8b96ad"></i></div><b>${pc(b)}</b></div></div>`; }).join('');
   const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
