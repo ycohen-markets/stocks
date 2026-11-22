@@ -801,7 +801,7 @@ function statsFor(sym){
     if(v[i][1]>v[ath][1]) ath=i;
     const dd=v[i][1]/v[pk][1]-1; if(dd<best.dd) best={dd,p:pk,t:i};
   }
-  let rec=null; if(best.t!=null){ let m=best.t; for(let i=best.t;i<v.length;i++) if(v[i][1]>v[m][1]) m=i; rec={gain:v[m][1]/v[best.t][1]-1, at:v[m][0]}; }
+  let rec=null; if(best.t!=null){ let m=best.t; for(let i=best.t;i<v.length;i++) if(v[i][1]>v[m][1]) m=i; rec={gain:v[m][1]/v[best.t][1]-1, at:v[m][0], p:v[m][1]}; }
   const last=v[v.length-1][1], cur=last/v[ath][1]-1;
   const yAgo=addDays(today(),-365); const h=(S.hist[sym]&&S.hist[sym].values||[]).filter(x=>x[0]>=yAgo);
   let vol=null, mid=null, above=null;
@@ -866,8 +866,8 @@ function renderStory(){
   if(st.fall||st.rise) h+=`<h3 style="margin:${st.insight?'16px':'0'} 0 0">📜 הנפילה הגדולה והעלייה הגדולה</h3>`+part('הנפילה הגדולה',st.fall,'📉')+part('העלייה הגדולה',st.rise,'📈');
   if(x){
     h+=`<h4>🔢 לפי הנתונים שבאפליקציה (מ־${fd(x.from)})</h4>
-    <div class="ln">השיא של כל הזמנים: <b dir="ltr">${fmt(x.ath.p)}</b> ב־${fd(x.ath.d)} · היום <b dir="ltr">${pct(x.cur*100)}</b> מהשיא</div>`;
-    if(x.mddTrough) h+=`<div class="ln">הנפילה הכי עמוקה: <b dir="ltr">${pct(x.mdd*100)}</b>, מ־${fd(x.mddPeak[0])} עד ${fd(x.mddTrough[0])}${x.rec?` · ומשם עלייה של <b dir="ltr">${pct(x.rec.gain*100)}</b> עד ${fd(x.rec.at)}`:''}</div>`;
+    <div class="ln">השיא של כל הזמנים: <b dir="ltr">${fmt(x.ath.p)}</b> ב־${fd(x.ath.d)} · היום <b dir="ltr">${fmt(x.last)}</b>, כלומר <b dir="ltr">${pct(x.cur*100)}</b> מהשיא</div>`;
+    if(x.mddTrough) h+=`<div class="ln">הנפילה הכי עמוקה: <b dir="ltr">${pct(x.mdd*100)}</b> – מ־<b dir="ltr">${fmt(x.mddPeak[1])}</b> ב־${fd(x.mddPeak[0])} עד <b dir="ltr">${fmt(x.mddTrough[1])}</b> ב־${fd(x.mddTrough[0])}${x.rec?` · ומשם עלייה של <b dir="ltr">${pct(x.rec.gain*100)}</b> עד <b dir="ltr">${fmt(x.rec.p)}</b> ב־${fd(x.rec.at)}`:''}</div>`;
     h+=`<div class="hint">כדי לראות את כל ההיסטוריה, לחץ למעלה על "מאז ההקמה" פעם אחת.</div>`;
   }
   h+='</div>';
@@ -994,8 +994,8 @@ function renderRisk(){
       let chips='';
       if(x){
         const used=x.mdd<0?Math.max(0,x.cur/x.mdd):0;
-        chips+=`<span class="chip">מהשיא <b>${pct(x.cur*100)}</b></span>`;
-        chips+=`<span class="chip">הנפילה הגדולה <b>${pct(x.mdd*100)}</b></span>`;
+        chips+=`<span class="chip">מהשיא <b>${pct(x.cur*100)}</b> · השיא <b dir="ltr">${fmt(x.ath.p)}</b></span>`;
+        chips+=`<span class="chip">הנפילה הגדולה <b>${pct(x.mdd*100)}</b>${x.mddTrough?` · מ־<b dir="ltr">${fmt(x.mddPeak[1])}</b> ל־<b dir="ltr">${fmt(x.mddTrough[1])}</b>`:''}</span>`;
         chips+=`<span class="chip">מתוך הנפילה הגדולה <b>${Math.round(used*100)}%</b></span>`;
         if(x.vol!=null) chips+=`<span class="chip">תנודתיות <b>${Math.round(x.vol*100)}%</b></span>`;
         if(x.above!=null) chips+=`<span class="chip">חצי השנה: <span class="${x.above?'up':'down'}">${x.above?'מעל':'מתחת'}</span></span>`;
@@ -1086,9 +1086,10 @@ function halfStats(legs){
   // breaks in the past that already came back to a new high: how long it took from the break, and how far the price fell on the way
   const recL=broke.filter(l=>l.outcome==='broke-recovered'&&l.wait!=null);
   const med=a=>{ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y), k=Math.floor(b.length/2); return b.length%2?b[k]:(b[k-1]+b[k])/2; };
+  const worst=recL.slice().sort((a,b)=>(b.H[1]-b.m[1])/b.H[1]-(a.H[1]-a.m[1])/a.H[1])[0];
   const waits=recL.map(l=>l.wait), drops=recL.map(l=>(l.H[1]-l.m[1])/l.H[1]), bots=recL.map(l=>l.toBottom), ups=recL.map(l=>l.days);
   return {n:done.length, held, broke:broke.length, rec, brokeOpen:broke.length-rec, hp, pHeld:done.length?held/done.length:null, pRec:broke.length?rec/broke.length:null, pHP:done.length?hp/done.length:null,
-    nRec:recL.length, waitMed:med(waits), waitMin:waits.length?Math.min(...waits):null, waitMax:waits.length?Math.max(...waits):null, dropMed:med(drops), dropMax:drops.length?Math.max(...drops):null, botMed:med(bots), botMin:bots.length?Math.min(...bots):null, botMax:bots.length?Math.max(...bots):null, upMed:med(ups)};
+    nRec:recL.length, waitMed:med(waits), waitMin:waits.length?Math.min(...waits):null, waitMax:waits.length?Math.max(...waits):null, dropMed:med(drops), dropMax:drops.length?Math.max(...drops):null, botMed:med(bots), botMin:bots.length?Math.min(...bots):null, botMax:bots.length?Math.max(...bots):null, upMed:med(ups), worst};
 }
 function durTxt(d){
   if(d==null) return '—'; d=Math.round(d);
@@ -1096,11 +1097,11 @@ function durTxt(d){
   if(d<730){ const m=Math.round(d/30.4); return m===1?'חודש':m===2?'חודשיים':m===12?'שנה':m+' חודשים'; }
   const y=Math.round(d/365*2)/2; return y===2?'שנתיים':y===2.5?'שנתיים וחצי':y%1?Math.floor(y)+' שנים וחצי':y+' שנים';
 }
-function recTxt(st,curDrop,name){
+function recTxt(st,curDrop,hi,p){
   // plain explanation of what happened after earlier breaks of the half
   if(!st.nRec) return ' זו הפעם הראשונה בנתונים שיש לנו שהמחיר שובר כך את החצי, ולכן אין לנו מהעבר מה ללמוד על ההמשך.';
   const k=st.nRec;
-  return ` מה קרה בעבר: ${k===1?'המחיר שבר את החצי פעם אחת, ואחרי זה חזר בסוף לשיא חדש':`המחיר שבר את החצי ${k} פעמים, ובכל אחת מהן חזר בסוף לשיא חדש`}. אבל זה לא תמיד קרה מהר. ${k===1?`אחרי השבירה המחיר המשיך לרדת עוד ${durTxt(st.botMed)}, ורק אז הסתובב והתחיל לעלות בחוזקה.`:`אחרי השבירה המחיר המשיך לרדת בדרך כלל עוד ${durTxt(st.botMed)} (${st.botMin<=2?`לפעמים כמעט מיד, ולפעמים עד ${durTxt(st.botMax)}`:`בין ${durTxt(st.botMin)} ל־${durTxt(st.botMax)}`}), ורק אז הגיע לתחתית והתחיל לעלות בחוזקה. מהתחתית עד שיא חדש עברו בדרך כלל ${durTxt(st.upMed)}.`} בסך הכול, מרגע השבירה ועד שיא חדש עברו ${k===1?durTxt(st.waitMed):`בדרך כלל ${durTxt(st.waitMed)} – הכי מהר ${durTxt(st.waitMin)}, והכי לאט ${durTxt(st.waitMax)}`}. ובדרך המחיר ירד ${k===1?`עד ${pc(st.dropMed)} מתחת לשיא`:`בדרך כלל עד ${pc(st.dropMed)} מתחת לשיא, ובפעם הקשה ביותר עד ${pc(st.dropMax)}`}.`+(curDrop!=null?` עכשיו המחיר ${pc(curDrop)} מתחת לשיא.`:'')+' זה לא מבטיח שגם הפעם המחיר יחזור – רק מראה מה קרה עד היום.';
+  return ` מה קרה בעבר: ${k===1?'המחיר שבר את החצי פעם אחת, ואחרי זה חזר בסוף לשיא חדש':`המחיר שבר את החצי ${k} פעמים, ובכל אחת מהן חזר בסוף לשיא חדש`}. אבל זה לא תמיד קרה מהר. ${k===1?`אחרי השבירה המחיר המשיך לרדת עוד ${durTxt(st.botMed)}, ורק אז הסתובב והתחיל לעלות בחוזקה.`:`אחרי השבירה המחיר המשיך לרדת בדרך כלל עוד ${durTxt(st.botMed)} (${st.botMin<=2?`לפעמים כמעט מיד, ולפעמים עד ${durTxt(st.botMax)}`:`בין ${durTxt(st.botMin)} ל־${durTxt(st.botMax)}`}), ורק אז הגיע לתחתית והתחיל לעלות בחוזקה. מהתחתית עד שיא חדש עברו בדרך כלל ${durTxt(st.upMed)}.`} בסך הכול, מרגע השבירה ועד שיא חדש עברו ${k===1?durTxt(st.waitMed):`בדרך כלל ${durTxt(st.waitMed)} – הכי מהר ${durTxt(st.waitMin)}, והכי לאט ${durTxt(st.waitMax)}`}. ובדרך המחיר ירד ${k===1?`עד ${pc(st.dropMed)} מתחת לשיא`:`בדרך כלל עד ${pc(st.dropMed)} מתחת לשיא, ובפעם הקשה ביותר עד ${pc(st.dropMax)} (מ־${fmt(st.worst.H[1])} ב־${fd(st.worst.H[0])} עד ${fmt(st.worst.m[1])} ב־${fd(st.worst.m[0])})`}.`+(curDrop!=null&&hi?` עכשיו המחיר ${fmt(p)}, כלומר ${pc(curDrop)} מתחת לשיא של ${fmt(hi)}. ${curDrop>=st.dropMed?`זה כבר יותר מהירידה ${k===1?'של הפעם הקודמת':'הרגילה בעבר'} (${pc(st.dropMed)}).`:`ירידה ${k===1?'כמו בפעם הקודמת':'רגילה כמו בעבר'} (${pc(st.dropMed)}) הייתה מביאה את המחיר לבערך ${fmt(hi*(1-st.dropMed))}.`}`:'')+' זה לא מבטיח שגם הפעם המחיר יחזור – רק מראה מה קרה עד היום.';
 }
 const pc=x=>x==null?'—':Math.round(x*100)+'%';
 function nowState(legs,sym){
@@ -1126,7 +1127,7 @@ function riskFor(sym,x,st,legs,hs){
     else if(hs.state==='below'){ score+=2; bad.push('בתיקון ונמצא מתחת לחצי ('+fmt(hs.mid)+')'); }
     else good.push('בתיקון אבל מחזיק מעל החצי ('+fmt(hs.mid)+')'); }
   if(st.n>=3){ if(st.pHeld<0.4){ score+=1; bad.push('בעבר שבר את החצי ברוב הפעמים ('+pc(1-st.pHeld)+')'); } else if(st.pHeld>=0.6){ score-=1; good.push('בעבר כיבד את החצי ב־'+pc(st.pHeld)+' מהמקרים'); } }
-  if(x&&x.mdd<0&&x.cur/x.mdd>0.6){ bad.push('כבר עמוק בירידה – קרוב לנפילה הגדולה שלו בעבר'); }
+  if(x&&x.mdd<0&&x.cur/x.mdd>0.6){ bad.push('כבר עמוק בירידה – היום '+fmt(x.last)+', כלומר '+pct(x.cur*100)+' מהשיא ('+fmt(x.ath.p)+'). הנפילה הגדולה בעבר הייתה '+pct(x.mdd*100)); }
   const lv=score>=4?2:score>=2?1:0;
   return {lv, name:['נמוכה','בינונית','גבוהה'][lv], bad, good};
 }
@@ -1357,9 +1358,9 @@ function corrSignal(sym){
   const V=corrValid(), c=corrNow(sym); if(!c) return [];
   const out=[], MEAN='💡 מה זה אומר: בעלייה בריאה התיקונים דומים זה לזה. תיקון שארוך או עמוק מכל התיקונים הקודמים הוא לפי גאן הסימן הראשון שהמגמה מתהפכת. זה לא אומר בוודאות שהעלייה נגמרה – רק שהסיכוי לכך גדל.';
   if(V.dur&&c.overDur&&c.durDay>=addDays(today(),-45)) out.push({kind:'corrtime',dir:'down',short:'תיקון ארוך מהרגיל',
-    txt:`הירידה מהשיא של ${fd(c.live.H.d)} נמשכת כבר ${c.days} ימים – יותר מכל התיקונים הקודמים בעלייה הזו (הארוך ביותר היה ${c.live.maxDur} ימים).`, mean:MEAN});
+    txt:`הירידה מהשיא של ${fd(c.live.H.d)} (${fmt(c.live.H.p)}) נמשכת כבר ${c.days} ימים, והמחיר עכשיו ${fmt(c.p)} – יותר מכל התיקונים הקודמים בעלייה הזו (הארוך ביותר היה ${c.live.maxDur} ימים).`, mean:MEAN});
   if(V.dep&&c.overDep&&c.last>=addDays(today(),-45)) out.push({kind:'corrsize',dir:'down',short:'תיקון עמוק מהרגיל',
-    txt:`הירידה מהשיא של ${fd(c.live.H.d)} הגיעה ל־${Math.round(c.dep*100)}% – יותר מכל התיקונים הקודמים בעלייה הזו (העמוק ביותר היה ${Math.round(c.live.maxDep*100)}%).`, mean:MEAN});
+    txt:`הירידה מהשיא של ${fd(c.live.H.d)} (${fmt(c.live.H.p)}) הגיעה ל־${Math.round(c.dep*100)}%, למחיר ${fmt(c.p)} – יותר מכל התיקונים הקודמים בעלייה הזו (העמוק ביותר היה ${Math.round(c.live.maxDep*100)}%).`, mean:MEAN});
   return out;
 }
 function renderCorr(){
@@ -1586,7 +1587,7 @@ function halfSignal(sym,vv,tday){
   }
   if(last.outcome==='broke-open' && clearBreak && last.brokeAt && last.brokeAt>=addDays(tday||today(),-15)){
     out.push({kind:'halfbreak',dir:'down',short:'שבר את החצי',
-      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+recTxt(st,(hi-p)/hi), mean:MEAN_HALF});
+      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+recTxt(st,(hi-p)/hi,hi,p), mean:MEAN_HALF});
   }
   if(Math.abs(p-hi/2)<=0.05*hi/2){
     out.push({kind:'halfprice',dir:'up',short:'בחצי ממחיר השיא',
@@ -1675,8 +1676,8 @@ function stockBrief(sym){
   L.push(`אני משתמש באפליקציית מעקב מניות שבנינו יחד, ויש לי שאלה על ${s.name} (${sym}) – ${descOf(sym)||''}.`);
   L.push(`הנתונים מהאפליקציה נכון ל־${new Date().toLocaleString('he-IL')}:`);
   if(q.price!=null) L.push(`מחיר: ${fmt(q.price)}, שינוי יומי ${pct(q.pct)}.`);
-  if(x){ L.push(`שיא כל הזמנים: ${fmt(x.ath.p)} (${fd(x.ath.d)}); היום ${pct(x.cur*100)} מהשיא.`);
-    if(x.mddTrough) L.push(`הנפילה הכי עמוקה בנתונים: ${pct(x.mdd*100)} (${fd(x.mddPeak[0])} עד ${fd(x.mddTrough[0])}).`);
+  if(x){ L.push(`שיא כל הזמנים: ${fmt(x.ath.p)} (${fd(x.ath.d)}); היום ${fmt(x.last)}, כלומר ${pct(x.cur*100)} מהשיא.`);
+    if(x.mddTrough) L.push(`הנפילה הכי עמוקה בנתונים: ${pct(x.mdd*100)} – מ־${fmt(x.mddPeak[1])} (${fd(x.mddPeak[0])}) עד ${fmt(x.mddTrough[1])} (${fd(x.mddTrough[0])}).`);
     if(x.vol!=null) L.push(`תנודתיות שנתית: ${Math.round(x.vol*100)}%. ${x.above?'מעל ':'מתחת ל'}אמצע השנה האחרונה.`); }
   try{ const legs=halfLegs(sym,parseFloat(S.halfMin)||0.2), hs=halfStats(legs), hn=halfNow(legs,sym);
     if(hs.n) L.push(`כלל החצי של גאן: בעבר התיקון נעצר מעל החצי ב־${pc(hs.pHeld)} מתוך ${hs.n} מקרים.`);
