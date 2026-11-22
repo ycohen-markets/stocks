@@ -1918,8 +1918,8 @@ $('refreshBtn').onclick=()=>refreshQuotes();
 
 /* ---------- loop ---------- */
 let timer=null;
-function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) refreshQuotes(); }, S.interval*60000); }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); } });
+function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden){ refreshQuotes(); if(S.symbols.some(x=>!S.hist[x.sym]||S.hist[x.sym].date!==today())) loadAllHistory(); } }, S.interval*60000); }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); if(S.symbols.some(x=>!S.hist[x.sym]||S.hist[x.sym].date!==today())) loadAllHistory(); } });
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
 if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
