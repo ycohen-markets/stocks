@@ -135,6 +135,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .legs{display:none;margin-top:8px}.open .legs{display:block}
 .leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
 .bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
+.lnk .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;border-bottom:1px solid #ffffff12;font-size:14px}.lnk .r b{text-align:left}
 .combo{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55;background:#8b96ad1a;border-right:3px solid #8b96ad}.combo.cup{background:#22c55e22;border-right-color:#22c55e}.combo.cdown{background:#ef444422;border-right-color:#ef4444}.combo .lv{font-weight:700}
 .risk{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
 .risk.r0{background:#22c55e1a;border-right:3px solid #22c55e}.risk.r1{background:#eab3081a;border-right:3px solid #eab308}.risk.r2{background:#ef44441a;border-right:3px solid #ef4444}
@@ -343,6 +344,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
       <div class="chartwrap"><canvas id="chart"></canvas></div>
       <p class="hint">לחיצה על נקודה בגרף מוסיפה סימון בתאריך ובמחיר של אותה נקודה. סימונים מופיעים בגרף כעיגולים צבעוניים.</p>
     </div>
+    <div class="panel hidden lnk" id="linkPanel"></div>
     <div class="panel" id="storyPanel"></div>
     <div class="panel" id="gannPanel">
       <h3 style="margin-top:0">כלי גאן</h3>
@@ -809,6 +811,49 @@ function statsFor(sym){
   return {from:v[0][0], ath:{p:v[ath][1],d:v[ath][0]}, cur, mdd:best.dd, mddPeak:best.p!=null?v[best.p]:null, mddTrough:best.t!=null?v[best.t]:null, rec, vol, mid, above, last};
 }
 const fd=d=>d?d.split('-').reverse().join('/'):'';
+
+/* ---------- a related asset shown inside the detail of another (bitcoin ⇄ MSTR) ---------- */
+const LINKS={'BTC/USD':'MSTR','MSTR':'BTC/USD'};
+function linkStats(a,b){
+  // daily moves on the days both traded, over the last year
+  const va=seriesFor(a), vb=seriesFor(b); if(va.length<30||vb.length<30) return null;
+  const from=addDays(today(),-365), mb=new Map(vb.filter(x=>x[0]>=from).map(x=>[x[0],x[1]]));
+  const common=va.filter(x=>x[0]>=from&&mb.has(x[0])).map(x=>[x[0],x[1],mb.get(x[0])]);
+  if(common.length<40) return null;
+  const ra=[], rb=[]; for(let i=1;i<common.length;i++){ ra.push(common[i][1]/common[i-1][1]-1); rb.push(common[i][2]/common[i-1][2]-1); }
+  const n=ra.length, ma=ra.reduce((x,y)=>x+y,0)/n, mb2=rb.reduce((x,y)=>x+y,0)/n;
+  let cov=0,va2=0,vb2=0,same=0; for(let i=0;i<n;i++){ cov+=(ra[i]-ma)*(rb[i]-mb2); va2+=(ra[i]-ma)**2; vb2+=(rb[i]-mb2)**2; if((ra[i]>0)===(rb[i]>0)) same++; }
+  const first=common[0], last=common[common.length-1];
+  return {n, corr:cov/Math.sqrt(va2*vb2), beta:cov/vb2, same:same/n, chA:last[1]/first[1]-1, chB:last[2]/first[2]-1, from:first[0]};
+}
+function renderLink(){
+  const box=$('linkPanel'), o=LINKS[cur];
+  if(!o||!S.symbols.some(x=>x.sym===o)){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  const idx=S.symbols.findIndex(x=>x.sym===o), so=S.symbols[idx], L=look(o,idx), q=S.quotes[o]||{};
+  const btc=cur==='MSTR'?'MSTR':'BTC/USD';
+  const sig=(ALERT.sig||{})[o]||[];
+  let half=''; try{ const legs=halfLegs(o,parseFloat(S.halfMin)||0.2), hn=halfNow(legs,o); if(hn) half=hn.state==='above'?`בתיקון, ועדיין מעל החצי (${fmt(hn.mid)}) ✅`:hn.state==='below'?`בתיקון, ומתחת לחצי (${fmt(hn.mid)}) ❌`:`שבר את החצי (${fmt(hn.mid)}) ועוד לא חזר לשיא ❌`; else half='לא בתיקון אחרי עלייה גדולה – כלל החצי לא רלוונטי כרגע'; }catch(e){}
+  let combo=''; try{ combo=comboHtml(gannCombo(o)); }catch(e){}
+  const ls=linkStats('MSTR','BTC/USD');
+  const rel=ls?`<p>בשנה האחרונה (${ls.n} ימי מסחר משותפים):</p>
+      <div class="r"><span>באותו כיוון כמו הביטקוין</span><b>${pc(ls.same)} מהימים</b></div>
+      <div class="r"><span>כשהביטקוין זז אחוז אחד, MSTR זזה בממוצע</span><b dir="ltr">${ls.beta.toFixed(1)}%</b></div>
+      <div class="r"><span>שינוי בשנה – ביטקוין</span><b dir="ltr" class="${ls.chB>=0?'up':'down'}">${pct(ls.chB*100)}</b></div>
+      <div class="r"><span>שינוי בשנה – MSTR</span><b dir="ltr" class="${ls.chA>=0?'up':'down'}">${pct(ls.chA*100)}</b></div>
+      <p class="hint">${ls.chA<ls.chB?'בשנה האחרונה MSTR עשתה פחות טוב מהביטקוין עצמו. זה קורה כשמשקיעים מוכנים לשלם פחות על החברה ביחס לביטקוין שהיא מחזיקה.':'בשנה האחרונה MSTR עשתה טוב יותר מהביטקוין עצמו. זה קורה כשמשקיעים מוכנים לשלם על החברה יותר מהביטקוין שהיא מחזיקה.'}</p>`:'<p class="hint">עוד אין מספיק נתונים משותפים כדי לחשב את הקשר.</p>';
+  box.classList.remove('hidden');
+  box.innerHTML=`<h3 style="margin-top:0">🔗 ${L.i} ${esc(so.name)} – ${cur==='MSTR'?'והביטקוין שמאחוריה':'החברה שמחזיקה ביטקוין'}</h3>
+    <div class="r"><span>מחיר עכשיו</span><b dir="ltr">${q.price!=null?fmt(q.price):'—'} <span class="${(q.pct||0)>=0?'up':'down'}">${q.pct!=null?pct(q.pct):''}</span></b></div>
+    <h4>📐 איפה ${cur==='MSTR'?'הביטקוין':'היא'} עומד${cur==='MSTR'?'':'ת'} בכללים של גאן</h4>
+    <div class="r"><span>כלל החצי</span><b>${half||'—'}</b></div>
+    ${sig.length?sig.map(g=>`<div class="hint">${g.dir==='up'?'▲':'▼'} ${esc(g.short)}</div>`).join(''):'<div class="hint">אין כרגע סימני גאן פעילים.</div>'}
+    ${combo}
+    <h4>🔗 הקשר בין MSTR לביטקוין</h4>
+    <p class="hint">החברה (היום בשם סטרטג'י) קונה כבר כמה שנים כמויות עצומות של ביטקוין, בכסף שהיא מגייסת בהלוואות ובהנפקת מניות. לכן המניה זזה בעיקר לפי הביטקוין – אבל חזק יותר, כמו ביטקוין עם מינוף: בעלייה היא עולה יותר, ובירידה היא נופלת יותר.</p>
+    ${rel}
+    <button id="linkOpen" class="pri" style="margin-top:6px">לפתוח את ${esc(so.name)}</button>`;
+  $('linkOpen').onclick=()=>openDetail(o);
+}
 function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
@@ -1026,7 +1071,7 @@ function halfLegs(sym,minRise,vv){
     let outcome;
     if(brk>=0) outcome=held?'held':'broke-recovered';
     else outcome=held?'open':'broke-open';
-    legs.push({brokeAt,L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null,wait:(brk>=0&&brokeAt)?Math.round((new Date(v[brk][0])-new Date(brokeAt))/864e5):null});
+    legs.push({brokeAt,L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null,wait:(brk>=0&&brokeAt)?Math.round((new Date(v[brk][0])-new Date(brokeAt))/864e5):null,toBottom:(brk>=0&&brokeAt)?Math.max(0,Math.round((new Date(v[m][0])-new Date(brokeAt))/864e5)):null});
     if(brk<0) break;
     L=m; i=brk;
   }
@@ -1041,9 +1086,9 @@ function halfStats(legs){
   // breaks in the past that already came back to a new high: how long it took from the break, and how far the price fell on the way
   const recL=broke.filter(l=>l.outcome==='broke-recovered'&&l.wait!=null);
   const med=a=>{ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y), k=Math.floor(b.length/2); return b.length%2?b[k]:(b[k-1]+b[k])/2; };
-  const waits=recL.map(l=>l.wait), drops=recL.map(l=>(l.H[1]-l.m[1])/l.H[1]);
+  const waits=recL.map(l=>l.wait), drops=recL.map(l=>(l.H[1]-l.m[1])/l.H[1]), bots=recL.map(l=>l.toBottom), ups=recL.map(l=>l.days);
   return {n:done.length, held, broke:broke.length, rec, brokeOpen:broke.length-rec, hp, pHeld:done.length?held/done.length:null, pRec:broke.length?rec/broke.length:null, pHP:done.length?hp/done.length:null,
-    nRec:recL.length, waitMed:med(waits), waitMin:waits.length?Math.min(...waits):null, waitMax:waits.length?Math.max(...waits):null, dropMed:med(drops), dropMax:drops.length?Math.max(...drops):null};
+    nRec:recL.length, waitMed:med(waits), waitMin:waits.length?Math.min(...waits):null, waitMax:waits.length?Math.max(...waits):null, dropMed:med(drops), dropMax:drops.length?Math.max(...drops):null, botMed:med(bots), botMin:bots.length?Math.min(...bots):null, botMax:bots.length?Math.max(...bots):null, upMed:med(ups)};
 }
 function durTxt(d){
   if(d==null) return '—'; d=Math.round(d);
@@ -1055,7 +1100,7 @@ function recTxt(st,curDrop,name){
   // plain explanation of what happened after earlier breaks of the half
   if(!st.nRec) return ' זו הפעם הראשונה בנתונים שיש לנו שהמחיר שובר כך את החצי, ולכן אין לנו מהעבר מה ללמוד על ההמשך.';
   const k=st.nRec;
-  return ` מה קרה בעבר: ${k===1?'המחיר שבר את החצי פעם אחת, ואחרי זה חזר בסוף לשיא חדש':`המחיר שבר את החצי ${k} פעמים, ובכל אחת מהן חזר בסוף לשיא חדש`}. אבל זה לא תמיד קרה מהר. מרגע השבירה ועד שיא חדש עברו ${k===1?durTxt(st.waitMed):`בדרך כלל ${durTxt(st.waitMed)} – הכי מהר ${durTxt(st.waitMin)}, והכי לאט ${durTxt(st.waitMax)}`}. ובדרך המחיר ירד ${k===1?`עד ${pc(st.dropMed)} מתחת לשיא`:`בדרך כלל עד ${pc(st.dropMed)} מתחת לשיא, ובפעם הקשה ביותר עד ${pc(st.dropMax)}`}.`+(curDrop!=null?` עכשיו המחיר ${pc(curDrop)} מתחת לשיא.`:'')+' זה לא מבטיח שגם הפעם המחיר יחזור – רק מראה מה קרה עד היום.';
+  return ` מה קרה בעבר: ${k===1?'המחיר שבר את החצי פעם אחת, ואחרי זה חזר בסוף לשיא חדש':`המחיר שבר את החצי ${k} פעמים, ובכל אחת מהן חזר בסוף לשיא חדש`}. אבל זה לא תמיד קרה מהר. ${k===1?`אחרי השבירה המחיר המשיך לרדת עוד ${durTxt(st.botMed)}, ורק אז הסתובב והתחיל לעלות בחוזקה.`:`אחרי השבירה המחיר המשיך לרדת בדרך כלל עוד ${durTxt(st.botMed)} (${st.botMin<=2?`לפעמים כמעט מיד, ולפעמים עד ${durTxt(st.botMax)}`:`בין ${durTxt(st.botMin)} ל־${durTxt(st.botMax)}`}), ורק אז הגיע לתחתית והתחיל לעלות בחוזקה. מהתחתית עד שיא חדש עברו בדרך כלל ${durTxt(st.upMed)}.`} בסך הכול, מרגע השבירה ועד שיא חדש עברו ${k===1?durTxt(st.waitMed):`בדרך כלל ${durTxt(st.waitMed)} – הכי מהר ${durTxt(st.waitMin)}, והכי לאט ${durTxt(st.waitMax)}`}. ובדרך המחיר ירד ${k===1?`עד ${pc(st.dropMed)} מתחת לשיא`:`בדרך כלל עד ${pc(st.dropMed)} מתחת לשיא, ובפעם הקשה ביותר עד ${pc(st.dropMax)}`}.`+(curDrop!=null?` עכשיו המחיר ${pc(curDrop)} מתחת לשיא.`:'')+' זה לא מבטיח שגם הפעם המחיר יחזור – רק מראה מה קרה עד היום.';
 }
 const pc=x=>x==null?'—':Math.round(x*100)+'%';
 function nowState(legs,sym){
@@ -1735,7 +1780,7 @@ function renderDetail(){
       <span>פתיחה היום: <b>${fmt(q.open)}</b></span><span>טווח יומי: <b>${fmt(q.low)} – ${fmt(q.high)}</b></span>
       <span>נקודות: <b>${vals.length}</b></span>`;
   } else $('dStats').innerHTML='<span>עדיין אין נתונים לטווח הזה</span>';
-  computeGann(); drawChart(); renderNotes(); renderGannUI(); renderStory();
+  computeGann(); drawChart(); renderNotes(); renderGannUI(); renderStory(); try{ renderLink(); }catch(e){ $('linkPanel').classList.add('hidden'); }
 }
 function noteIndex(n){
   if(!series.length) return -1;
