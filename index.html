@@ -1026,7 +1026,7 @@ function halfLegs(sym,minRise,vv){
     let outcome;
     if(brk>=0) outcome=held?'held':'broke-recovered';
     else outcome=held?'open':'broke-open';
-    legs.push({brokeAt,L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null});
+    legs.push({brokeAt,L:v[L],H:v[H],mid,m:v[m],depth:(hi-v[m][1])/(hi-lo),outcome,heldHalfPrice,rec:brk>=0?v[brk]:null,days:brk>=0?Math.round((new Date(v[brk][0])-new Date(v[m][0]))/864e5):null,wait:(brk>=0&&brokeAt)?Math.round((new Date(v[brk][0])-new Date(brokeAt))/864e5):null});
     if(brk<0) break;
     L=m; i=brk;
   }
@@ -1038,7 +1038,24 @@ function halfStats(legs){
   const broke=done.filter(l=>l.outcome!=='held');
   const rec=broke.filter(l=>l.outcome==='broke-recovered').length;
   const hp=done.filter(l=>l.heldHalfPrice).length;
-  return {n:done.length, held, broke:broke.length, rec, brokeOpen:broke.length-rec, hp, pHeld:done.length?held/done.length:null, pRec:broke.length?rec/broke.length:null, pHP:done.length?hp/done.length:null};
+  // breaks in the past that already came back to a new high: how long it took from the break, and how far the price fell on the way
+  const recL=broke.filter(l=>l.outcome==='broke-recovered'&&l.wait!=null);
+  const med=a=>{ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y), k=Math.floor(b.length/2); return b.length%2?b[k]:(b[k-1]+b[k])/2; };
+  const waits=recL.map(l=>l.wait), drops=recL.map(l=>(l.H[1]-l.m[1])/l.H[1]);
+  return {n:done.length, held, broke:broke.length, rec, brokeOpen:broke.length-rec, hp, pHeld:done.length?held/done.length:null, pRec:broke.length?rec/broke.length:null, pHP:done.length?hp/done.length:null,
+    nRec:recL.length, waitMed:med(waits), waitMin:waits.length?Math.min(...waits):null, waitMax:waits.length?Math.max(...waits):null, dropMed:med(drops), dropMax:drops.length?Math.max(...drops):null};
+}
+function durTxt(d){
+  if(d==null) return '—'; d=Math.round(d);
+  if(d<60) return d===1?'יום אחד':d+' ימים';
+  if(d<730){ const m=Math.round(d/30.4); return m===1?'חודש':m===2?'חודשיים':m===12?'שנה':m+' חודשים'; }
+  const y=Math.round(d/365*2)/2; return y===2?'שנתיים':y===2.5?'שנתיים וחצי':y%1?Math.floor(y)+' שנים וחצי':y+' שנים';
+}
+function recTxt(st,curDrop,name){
+  // plain explanation of what happened after earlier breaks of the half
+  if(!st.nRec) return ' זו הפעם הראשונה בנתונים שיש לנו שהמחיר שובר כך את החצי, ולכן אין לנו מהעבר מה ללמוד על ההמשך.';
+  const k=st.nRec;
+  return ` מה קרה בעבר: ${k===1?'המחיר שבר את החצי פעם אחת, ואחרי זה חזר בסוף לשיא חדש':`המחיר שבר את החצי ${k} פעמים, ובכל אחת מהן חזר בסוף לשיא חדש`}. אבל זה לא תמיד קרה מהר. מרגע השבירה ועד שיא חדש עברו ${k===1?durTxt(st.waitMed):`בדרך כלל ${durTxt(st.waitMed)} – הכי מהר ${durTxt(st.waitMin)}, והכי לאט ${durTxt(st.waitMax)}`}. ובדרך המחיר ירד ${k===1?`עד ${pc(st.dropMed)} מתחת לשיא`:`בדרך כלל עד ${pc(st.dropMed)} מתחת לשיא, ובפעם הקשה ביותר עד ${pc(st.dropMax)}`}.`+(curDrop!=null?` עכשיו המחיר ${pc(curDrop)} מתחת לשיא.`:'')+' זה לא מבטיח שגם הפעם המחיר יחזור – רק מראה מה קרה עד היום.';
 }
 const pc=x=>x==null?'—':Math.round(x*100)+'%';
 function nowState(legs,sym){
@@ -1083,7 +1100,7 @@ function renderGann(){
     const html=`<div class="gbox" style="margin-bottom:8px;cursor:pointer" data-sym="${esc(s.sym)}">
       <div class="r"><span>${L.i} <b>${esc(s.name)}</b> <span class="tk">${esc(s.sym)}</span></span><span>${st.n===1?'מקרה אחד':st.n+' מקרים'}</span></div>
       ${st.n?`<div class="r"><span>כיבד את החצי</span><b>${pc(st.pHeld)}</b></div><div class="bar"><i style="width:${Math.round((st.pHeld||0)*100)}%"></i></div>
-      <div class="r"><span>כששבר – כבר חזר לשיא חדש</span><b>${st.broke?pc(st.pRec)+' ('+st.rec+' מתוך '+st.broke+')':'—'}</b></div>
+      <div class="r"><span>כששבר – חזר לשיא חדש אחרי</span><b>${st.nRec?(st.nRec>1?'בדרך כלל ':'')+durTxt(st.waitMed):'—'}</b></div>
       <div class="r"><span>נשאר מעל חצי ממחיר השיא</span><b>${pc(st.pHP)}</b></div>`:''}
       ${nowState(legs,s.sym)?`<div class="hint" style="margin-top:6px">${nowState(legs,s.sym)}</div>`:''}
       <div class="legs">${legsHtml||'<div class="hint">לא נמצאו עליות שעומדות בתנאי.</div>'}</div>
@@ -1108,7 +1125,8 @@ function renderGann(){
     </div>
     <p class="hint">שני המספרים האלה הם שני הצדדים של אותה שאלה, וביחד הם מאה אחוז.</p>
     <h4>שאלה 2: ומה קרה לאלה שירדו מתחת לחצי?</h4>
-    <div class="sumgrid"><div class="gbox"><div class="big">${pc(t.pRec)}</div><div class="hint">מהם חזרו בסוף לשיא חדש</div></div></div>
+    <div class="sumgrid"><div class="gbox"><div class="big">${durTxt(t.waitMed)}</div><div class="hint">בדרך כלל עד שיא חדש, מרגע השבירה</div></div><div class="gbox"><div class="big">${pc(t.dropMed)}</div><div class="hint">בדרך כלל ירדו עד כדי כך מתחת לשיא</div></div></div>
+    <p class="hint">בעבר, כל הנכסים כאן ששברו את החצי חזרו בסוף לשיא חדש – ${t.nRec} פעמים. אבל זה לקח בין ${durTxt(t.waitMin)} ל־${durTxt(t.waitMax)}. כרגע ${t.brokeOpen===1?'נכס אחד נמצא':t.brokeOpen+' נכסים נמצאים'} בשבירה שעוד לא חזרה.</p>
     <p class="hint">כלומר שבירת החצי בדרך כלל לא הייתה סוף הסיפור, אלא תיקון עמוק יותר. שים לב: את הנכסים כאן בחרנו כי הם מצליחים היום, ונכסים שקרסו ונעלמו לא ברשימה – ולכן המספר הזה אופטימי מהמציאות. וגם "בסוף" יכול להיות אחרי חודשים או שנים.</p>
     <h4>שאלה 3: הכלל השני – האם המחיר נשאר מעל חצי ממחיר השיא?</h4>
     <div class="sumgrid"><div class="gbox"><div class="big">${pc(t.pHP)}</div><div class="hint">נשארו מעל חצי ממחיר השיא</div></div></div>
@@ -1523,7 +1541,7 @@ function halfSignal(sym,vv,tday){
   }
   if(last.outcome==='broke-open' && clearBreak && last.brokeAt && last.brokeAt>=addDays(tday||today(),-15)){
     out.push({kind:'halfbreak',dir:'down',short:'שבר את החצי',
-      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+(st.broke?` בעבר, מתוך ${st.broke} שבירות, המניה חזרה לשיא ב־${pc(st.pRec)} מהמקרים – אבל לפעמים רק אחרי זמן רב.`:''), mean:MEAN_HALF});
+      txt:`שבר בימים האחרונים את החצי (${fmt(mid)}) של העלייה מ־${fmt(lo)} ל־${fmt(hi)}. לפי גאן זה סימן חולשה.`+recTxt(st,(hi-p)/hi), mean:MEAN_HALF});
   }
   if(Math.abs(p-hi/2)<=0.05*hi/2){
     out.push({kind:'halfprice',dir:'up',short:'בחצי ממחיר השיא',
