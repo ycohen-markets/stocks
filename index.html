@@ -166,6 +166,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <div class="row">
     <button id="alertBtn">⏰ נקודות גאן <span class="cnt hidden" id="alertCnt"></span></button>
     <button id="gannBtn">📐 גאן</button>
+    <button id="dowBtn">📊 דאו</button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
     <button id="refreshBtn">רענן עכשיו</button>
@@ -216,6 +217,21 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     </div>
   </section>
 
+  <section id="dow" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📊 שיטות להשוואה – דאו והממוצע</h2><button id="dowBack">→ חזרה</button></div>
+      <div class="tabs" id="dowTabs">
+        <button data-t="dow" class="on">1. שיטת דאו</button>
+        <button data-t="ma">2. ממוצע מאתיים יום</button>
+      </div>
+      <div id="dowIntro" class="insight" style="margin-top:10px"></div>
+      <div class="row" id="dowCtl" style="margin-top:12px"><span>גודל נקודת מפנה:</span>
+        <select id="dowMin"><option value="0.05">5%</option><option value="0.08">8%</option><option value="0.12">12%</option></select>
+        <button id="dowLoadFull">טעינת היסטוריה מלאה לכל הנכסים</button><span class="hint" id="dowNote"></span></div>
+    </div>
+    <div class="panel" id="dowSummary"></div>
+    <div class="panel"><h3 style="margin-top:0">🔍 מה המצב עכשיו בכל נכס</h3><div id="dowAssets"></div></div>
+  </section>
   <section id="gann" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">📐 ארבעת היסודות של גאן</h2><button id="gannBack">→ חזרה</button></div>
@@ -862,7 +878,7 @@ function renderStory(){
   const st=STORIES[cur]||{}, x=statsFor(cur);
   let h='<div class="story">';
   const tItems=(ALERT.items||[]).filter(x=>x.s.sym===cur), hItems=(ALERT.half||{})[cur]||[];
-  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${g.kind==='son'?'🔢':g.kind==='ang'?'📏':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
+  if(tItems.length||hItems.length){ h+='<h3 style="margin-top:0">⏰ נקודות גאן עכשיו</h3><div class="insight" style="margin-bottom:12px">'+tItems.map(alertItemHtml).join('')+hItems.map(g=>`<div class="al"><b>${sigIcon(g.kind)} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join('')+'</div>'; }
   if(st.insight) h+=`<h3 style="margin-top:0">💡 תובנה</h3><div class="insight">${st.insight}</div>`;
   const part=(t,o,ic)=> o?`<h4>${ic} ${t}: ${o.when}</h4>
     <div class="ln"><span class="lab">הסיבה בפועל:</span> ${o.phys}</div>
@@ -893,7 +909,7 @@ function renderStory(){
 }
 
 /* ---------- combined Gann signal: do the tested signals agree? ---------- */
-const FAM={time:'⏰ תאריך גאן',half:'📐 החצי',halfprice:'📐 החצי',halfbreak:'📐 החצי',son:'🔢 ריבוע התשע',corrtime:'⏳ תיקון חריג',corrsize:'⏳ תיקון חריג',ang:'📏 זווית'};
+const FAM={time:'⏰ תאריך גאן',half:'📐 החצי',halfprice:'📐 החצי',halfbreak:'📐 החצי',son:'🔢 ריבוע התשע',corrtime:'⏳ תיקון חריג',corrsize:'⏳ תיקון חריג',ang:'📏 זווית',dow:'📊 דאו',ma:'〰️ ממוצע 200'};
 function gannCombo(sym){ return comboOf((ALERT.sig||{})[sym]||[]); }
 function comboOf(gs){
   const fam={};
@@ -928,6 +944,9 @@ function btSignalsAt(v,t,ctx){
     let hit=null; P.slice(-2).forEach(b=>ANG_M.forEach(m=>{ const L=angLine(b,ctx.angU,m,ms); if(L&&Math.abs(p-L)/L<=ANG_TOL&&(!hit||Math.abs(p-L)<Math.abs(p-hit))) hit=L; }));
     if(hit) out.push({kind:'ang',dir:p>=hit?'up':'down'}); } }
   // unusually long / deep pullback
+  // Dow and the 200-day average: a passed signal in the last 10 days
+  const from10=addDays(day,-10);
+  ctx.other.forEach(e=>{ if(e.d>from10&&e.d<=day) out.push({kind:e.kind,dir:e.dir}); });
   if(ctx.corr.dur||ctx.corr.dep){ const P=conf(ctx.Pcorr,ctx.kc); const live=P.length?corrEventsP(P).live:null;
     if(live){ const days=Math.round((ms-live.H.ms)/864e5), dep=(live.H.p-p)/live.H.p;
       if(ctx.corr.dur&&days>live.maxDur&&days-live.maxDur<=45) out.push({kind:'corrtime',dir:'down'});
@@ -938,11 +957,15 @@ let BT=null;
 async function runComboTest(onStep){
   const A=gannAlerts(), validN=A.ready?A.valid:[];
   const sonT=parseFloat(S.sonMin)||0.15, angT=parseFloat(S.angMin)||0.15, tT=parseFloat(S.timeMin)||0.15;
+  const DA=dowAnalysis();
   const sonValid=sonAnalysis(sonT).valid, angOk=angValid(angT), cv=corrValid(), corr={dur:cv.dur,dep:cv.dep};
   const samples=[]; let done=0;
   for(const s of S.symbols){
     const v=seriesFor(s.sym); if(v.length<80){ done++; continue; }
-    const ctx={sym:s.sym,validN,sonValid,angOk,corr,Ptime:zigzagC(v,tT),Pson:zigzagC(v,sonT),Pang:zigzagC(v,angT),Pcorr:zigzagC(v,CORR_MAIN),kt:{n:0},ks:{n:0},ka:{n:0},kc:{n:0},angN:0,angU:0};
+    const other=[]; const dd=DA.dPer[s.sym], mm=DA.mPer[s.sym];
+    if(dd) dd.ev.forEach(e=>{ if(DA.dow[e.dir]&&DA.dow[e.dir].pass) other.push({kind:'dow',dir:e.dir,d:e.d}); });
+    if(mm) mm.ev.forEach(e=>{ if(DA.ma[e.dir]&&DA.ma[e.dir].pass) other.push({kind:'ma',dir:e.dir,d:e.d}); });
+    const ctx={other,sym:s.sym,validN,sonValid,angOk,corr,Ptime:zigzagC(v,tT),Pson:zigzagC(v,sonT),Pang:zigzagC(v,angT),Pcorr:zigzagC(v,CORR_MAIN),kt:{n:0},ks:{n:0},ka:{n:0},kc:{n:0},angN:0,angU:0};
     const msOf=i=>new Date(v[i][0]+'T12:00:00').getTime();
     let lastMs=0, prevKey='', j1=0, j3=0;
     for(let t=60;t<v.length;t++){
@@ -992,7 +1015,7 @@ function comboHtml(c){ return `<div class="combo ${c.cls}"><div class="lv">🧭 
 function renderCombo(){
   const rows=S.symbols.map((s,idx)=>({s,idx,c:gannCombo(s.sym)})).filter(x=>x.c.lv>=2).sort((a,b)=>b.c.lv-a.c.lv);
   $('comboBox').innerHTML=`<h3 style="margin-top:0">🧭 האות המשולב של גאן</h3>
-    <p class="hint">כאן מתחברים כל ארבעת היסודות: החצי, מחזורי הזמן, ריבוע התשע והזוויות, וגם כלל התיקון החריג. מזמן, מריבוע התשע, מהזוויות ומהתיקון החריג נספרים רק סימנים שעברו את הבדיקה מול המקרה. סימן החצי נשען על מה שקרה בעבר באותה מניה. כששתי שיטות שונות או יותר מצביעות לאותו כיוון – זה אות חזק. כששלוש או יותר מסכימות – זה נדיר, ומסומן כהזדמנות או כאזהרה.</p>
+    <p class="hint">כאן מתחברים כל ארבעת היסודות של גאן: החצי, מחזורי הזמן, ריבוע התשע והזוויות, וגם כלל התיקון החריג – ואיתם שיטת דאו וממוצע מאתיים הימים. מזמן, מריבוע התשע, מהזוויות, מהתיקון החריג, מדאו ומהממוצע נספרים רק סימנים שעברו את הבדיקה מול המקרה. סימן החצי נשען על מה שקרה בעבר באותה מניה. כששתי שיטות שונות או יותר מצביעות לאותו כיוון – זה אות חזק. כששלוש או יותר מסכימות – זה נדיר, ומסומן כהזדמנות או כאזהרה.</p>
     ${rows.length?rows.map(({s,idx,c})=>{ const L=look(s.sym,idx); return `<div class="al" data-sym="${esc(s.sym)}" style="cursor:pointer"><b>${L.i} ${esc(s.name)}</b>${comboHtml(c)}</div>`; }).join(''):'<p><b>כרגע אין אף נכס שבו כמה שיטות מסכימות.</b> <span class="hint">זה המצב הרגיל – אותות חזקים נדירים.</span></p>'}
     <div id="comboTest">${BT?comboTestHtml(BT):'<p class="hint">כל שיטה לחוד נבדקה. כדי לראות אם גם השילוב עבד בעבר, לחץ על הכפתור. זה לוקח עד חצי דקה.</p><button id="comboRun" class="pri">בדוק את השילוב על העבר</button>'}</div>
     <p class="hint">זה כלי לשים לב, לא הבטחה ולא המלצה לקנות או למכור.</p>`;
@@ -1038,7 +1061,7 @@ $('loadAllFull').onclick=async()=>{
   if(loadingAll) return; loadingAll=true;
   const todo=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].v===2&&(!S.full[s.sym].note||S.full[s.sym].ratio)));
   const upd=()=>VIEWS.forEach(v=>{ if(!$(v).classList.contains('hidden')) RENDER[v](); });
-  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; $('timeNote').textContent=msg; $('sonNote').textContent=msg; $('angNote').textContent=msg; }
+  let n=0; for(const s of todo){ try{ await loadFull(s.sym); }catch(e){} n++; const msg='טוען '+n+' מתוך '+todo.length+'… (שמונה בדקה)'; upd(); $('riskNote').textContent=msg; $('halfNote').textContent=msg; $('timeNote').textContent=msg; $('sonNote').textContent=msg; $('angNote').textContent=msg; $('dowNote').textContent=msg; }
   loadingAll=false; upd();
 };
 
@@ -1562,6 +1585,114 @@ function renderAng(){
 }
 $('angMin').onchange=()=>{ S.angMin=$('angMin').value; save(); renderGann(); scheduleAlert(); };
 $('angLoadFull').onclick=()=>$('loadAllFull').onclick();
+
+/* ---------- methods to compare with Gann: Dow theory and the 200-day average ---------- */
+function sigIcon(k){ return k==='dow'?'📊':k==='ma'?'〰️':k==='time'?'⏰':k==='son'?'🔢':k==='ang'?'📏':k.startsWith('corr')?'⏳':'📐'; }
+function dowEvents(v,T){
+  // Dow: a rise = higher highs and higher lows. It breaks when the price closes under the last higher low.
+  // A fall = lower highs and lower lows. It turns when the price closes above the last lower high.
+  const P=zigzagC(v,T), H=[], L=[], ev=[]; let k=0, usedL=null, usedH=null;
+  for(let t=1;t<v.length;t++){
+    while(k<P.length&&P[k].c<=t){ (P[k].t==='H'?H:L).push(P[k]); k++; }
+    if(H.length<2||L.length<2) continue;
+    const h1=H[H.length-2],h2=H[H.length-1],l1=L[L.length-2],l2=L[L.length-1];
+    const up=h2.p>h1.p&&l2.p>l1.p, dn=h2.p<h1.p&&l2.p<l1.p, c=v[t][1], pc=v[t-1][1];
+    if(up&&usedL!==l2&&c<l2.p&&pc>=l2.p){ ev.push({t,d:v[t][0],dir:'down',level:l2.p,from:l2.d}); usedL=l2; }
+    if(dn&&usedH!==h2&&c>h2.p&&pc<=h2.p){ ev.push({t,d:v[t][0],dir:'up',level:h2.p,from:h2.d}); usedH=h2; }
+  }
+  let state=null;
+  if(H.length>=2&&L.length>=2){ const h1=H[H.length-2],h2=H[H.length-1],l1=L[L.length-2],l2=L[L.length-1];
+    state={up:h2.p>h1.p&&l2.p>l1.p, dn:h2.p<h1.p&&l2.p<l1.p, h1,h2,l1,l2}; }
+  return {ev,state};
+}
+function maSeries(v,n){ const ma=new Array(v.length).fill(null); let sum=0; for(let i=0;i<v.length;i++){ sum+=v[i][1]; if(i>=n) sum-=v[i-n][1]; if(i>=n-1) ma[i]=sum/n; } return ma; }
+function maEvents(v){
+  // the price crosses the 200-day average and stays on the new side for 3 closes in a row
+  const ma=maSeries(v,200), ev=[]; let side=null, run=0;
+  for(let t=199;t<v.length;t++){
+    const s=v[t][1]>=ma[t]?'up':'down';
+    if(side===null){ side=s; continue; }
+    if(s!==side){ run++; if(run>=3){ side=s; run=0; ev.push({t,d:v[t][0],dir:s,level:ma[t]}); } } else run=0;
+  }
+  return {ev,ma,side};
+}
+function dailyOf(sym){ return (S.hist[sym]&&S.hist[sym].values||[]).concat((()=>{ const q=S.quotes[sym], h=S.hist[sym]&&S.hist[sym].values||[]; return q&&q.price&&q.d&&(!h.length||q.d>h[h.length-1][0])?[[q.d,q.price]]:[]; })()); }
+function evalEvents(perSym){
+  // after each signal: was the price 3 months later on the side the signal pointed to? compared with ordinary days of the same asset
+  const r=rng(123), res={};
+  ['up','down'].forEach(dir=>{
+    const ev=[], pool={};
+    Object.entries(perSym).forEach(([sym,{v,ev:E}])=>{
+      const ms=v.map(x=>new Date(x[0]+'T12:00:00').getTime()); let j=0; const f3=[];
+      for(let i=0;i<v.length;i++){ while(j<v.length&&ms[j]<ms[i]+91*864e5) j++; f3.push(j<v.length?v[j][1]/v[i][1]-1:null); }
+      pool[sym]=[]; let last=0; for(let i=0;i<v.length;i++){ if(f3[i]==null) break; if(ms[i]-last>=7*864e5){ pool[sym].push(f3[i]); last=ms[i]; } }
+      E.filter(e=>e.dir===dir&&f3[e.t]!=null).forEach(e=>ev.push({sym,r3:f3[e.t]}));
+    });
+    const good=x=>dir==='up'?x>0:x<0;
+    if(!ev.length){ res[dir]={n:0}; return; }
+    const real=ev.filter(e=>good(e.r3)).length/ev.length, avg=ev.reduce((a,e)=>a+e.r3,0)/ev.length;
+    const fk=[]; let fAvg=0;
+    for(let t=0;t<300;t++){ let g=0; ev.forEach(e=>{ const pl=pool[e.sym]; if(!pl.length) return; const z=pl[Math.floor(r()*pl.length)]; if(good(z)) g++; fAvg+=z; }); fk.push(g/ev.length); }
+    const fake=fk.reduce((a,b)=>a+b,0)/fk.length, pv=fk.filter(x=>x>=real).length/fk.length;
+    res[dir]={n:ev.length,real,fake,pv,avg,fAvg:fAvg/(300*ev.length),pass:ev.length>=20&&pv<=0.01&&real>=fake+0.05};
+  });
+  return res;
+}
+let dowCache={key:''};
+function dowKey(){ return S.symbols.map(s=>s.sym+':'+((S.hist[s.sym]||{}).date||'')+':'+(((S.full[s.sym]||{}).values||[]).length)).join(',')+'|'+(S.dowMin||'0.08'); }
+function dowAnalysis(){
+  const key=dowKey(); if(dowCache.key===key) return dowCache;
+  const T=parseFloat(S.dowMin)||0.08, dPer={}, mPer={};
+  S.symbols.forEach(s=>{ const v=seriesFor(s.sym); if(v.length>=60) dPer[s.sym]={v,...dowEvents(v,T)}; const h=dailyOf(s.sym); if(h.length>=230) mPer[s.sym]={v:h,...maEvents(h)}; });
+  dowCache={key,dPer,mPer,dow:evalEvents(dPer),ma:evalEvents(mPer)}; return dowCache;
+}
+const DOW_MEAN='💡 מה זה אומר: לפי שיטת דאו, מגמה נמשכת עד שהיא נשברת בבירור. שבירה של השפל האחרון בעלייה היא הסימן הראשון שהעלייה נגמרה; פריצה מעל השיא האחרון בירידה היא הסימן הראשון שהירידה נגמרה.';
+const MA_MEAN='💡 מה זה אומר: הממוצע של מאתיים הימים מראה את המגמה הארוכה. מחיר מעליו נחשב שוק בריא; ירידה מתחתיו, כשהמחיר נשאר שם כמה ימים, נחשבת אצל הרבה משקיעים סימן לחולשה – ועלייה מעליו סימן להתאוששות.';
+function dowSignal(sym){
+  const A=dowAnalysis(), out=[], from=addDays(today(),-10);
+  const d=A.dPer[sym]; if(d){ const e=d.ev[d.ev.length-1]; if(e&&e.d>=from&&A.dow[e.dir]&&A.dow[e.dir].pass)
+    out.push({kind:'dow',dir:e.dir,short:e.dir==='down'?'שבירת מגמה לפי דאו':'פריצה לפי דאו',txt:e.dir==='down'?`ב־${fd(e.d)} המחיר נסגר מתחת לשפל האחרון של העלייה (${fmt(e.level)}, מ־${fd(e.from)}). לפי דאו – העלייה נשברה.`:`ב־${fd(e.d)} המחיר נסגר מעל השיא האחרון של הירידה (${fmt(e.level)}, מ־${fd(e.from)}). לפי דאו – הירידה נשברה.`,mean:DOW_MEAN}); }
+  const m=A.mPer[sym]; if(m){ const e=m.ev[m.ev.length-1]; if(e&&e.d>=from&&A.ma[e.dir]&&A.ma[e.dir].pass)
+    out.push({kind:'ma',dir:e.dir,short:e.dir==='down'?'ירד מתחת לממוצע 200':'עלה מעל ממוצע 200',txt:`ב־${fd(e.d)} המחיר נסגר שלושה ימים ברצף ${e.dir==='down'?'מתחת':'מעל'} לממוצע של מאתיים הימים (${fmt(e.level)}).`,mean:MA_MEAN}); }
+  return out;
+}
+let dowTab='dow';
+function renderDow(){
+  [...$('dowTabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===dowTab));
+  const A=dowAnalysis(), R=dowTab==='dow'?A.dow:A.ma;
+  $('dowCtl').classList.toggle('hidden',dowTab!=='dow');
+  $('dowIntro').innerHTML=dowTab==='dow'?`<b>השיטה:</b> צ'רלס דאו, לפני יותר ממאה שנה, אמר שמגמת עלייה היא כשכל שיא גבוה מהשיא הקודם וכל שפל גבוה מהשפל הקודם. ברגע שהמחיר נסגר מתחת לשפל האחרון – העלייה נשברה. ובירידה הפוך: כשהמחיר נסגר מעל השיא האחרון – הירידה נשברה.
+    <br><b>איך בדקתי:</b> מצאתי בכל ההיסטוריה של כל הנכסים כל שבירה כזו, רק לפי מה שהיה ידוע באותו יום, ובדקתי איפה היה המחיר שלושה חודשים אחר כך.
+    <br>🎲 <b>ההשוואה למקרה:</b> אותו דבר בימים רגילים של אותם נכסים, שלוש מאות פעם. השיטה נחשבת טובה רק אם היא ניבאה בבירור יותר טוב מיום רגיל.`
+   :`<b>השיטה:</b> כל יום מחשבים את המחיר הממוצע של מאתיים ימי המסחר האחרונים – כמעט שנה. כשהמחיר יורד מתחת לממוצע ונשאר שם שלושה ימים – זה סימן חולשה. כשהוא עולה מעליו ונשאר – סימן להתאוששות. זו כנראה השיטה הכי נפוצה בעולם.
+    <br><b>איך בדקתי:</b> מצאתי כל חציה כזו בנתונים היומיים של כל הנכסים (ארבע השנים האחרונות), ובדקתי איפה היה המחיר שלושה חודשים אחר כך.
+    <br>🎲 <b>ההשוואה למקרה:</b> אותו דבר בימים רגילים של אותם נכסים, שלוש מאות פעם.`;
+  const row=(name,x,up)=>{ if(!x.n) return `<div class="gbox" style="margin-bottom:8px"><b>${name}</b><div class="hint">לא קרה בנתונים.</div></div>`;
+    const few=x.n<20;
+    return `<div class="gbox" style="margin-bottom:8px"><div class="r"><span>${x.pass?'⭐ ':''}<b>${name}</b></span><span class="wt ${x.pass?'wt0':few?'wt1':'wt3'}">${x.pass?'עבד יותר ממקרה':few?'מעט מדי מקרים':'לא יותר ממקרה'}</span></div>
+      <div class="hint">קרה ${x.n} פעמים. שלושה חודשים אחר כך המחיר היה ${up?'גבוה':'נמוך'} יותר ב־${pc(x.real)} מהפעמים (ביום רגיל: ${pc(x.fake)}). השינוי הממוצע אחרי הסימן: ${pct(x.avg*100)}, וביום רגיל: ${pct(x.fAvg*100)}.</div>
+      <div class="cmp"><span style="width:70px">הסימן</span><div class="b"><i style="width:${Math.round(x.real*100)}%;background:${up?'#22c55e':'#ef4444'}"></i></div><b>${pc(x.real)}</b></div>
+      <div class="cmp"><span style="width:70px">יום רגיל</span><div class="b"><i style="width:${Math.round(x.fake*100)}%;background:#8b96ad"></i></div><b>${pc(x.fake)}</b></div></div>`; };
+  const nm=dowTab==='dow'?['▼ שבירת עלייה (מתחת לשפל האחרון)','▲ שבירת ירידה (מעל השיא האחרון)']:['▼ ירידה מתחת לממוצע','▲ עלייה מעל הממוצע'];
+  const any=R.down.pass||R.up.pass;
+  $('dowSummary').innerHTML=`<h3 style="margin-top:0">📊 מה יצא בכל הנכסים יחד</h3>${row(nm[0],R.down,false)}${row(nm[1],R.up,true)}
+    <div class="insight"><b>בשורה התחתונה:</b> ${any?`${R.down.pass&&R.up.pass?'שני הכיוונים':R.down.pass?'הסימן כלפי מטה':'הסימן כלפי מעלה'} ניבא בעבר יותר טוב מיום רגיל. לכן ${R.down.pass&&R.up.pass?'הם מופיעים':'הוא מופיע'} בנקודות ובאות המשולב.`:'בנתונים שלך השיטה לא ניבאה יותר טוב מיום רגיל. לכן אין ממנה התראות – אבל המצב של כל נכס מופיע למטה למידע.'}</div>`;
+  $('dowAssets').innerHTML=S.symbols.map((s,idx)=>{ const L=look(s.sym,idx);
+    if(dowTab==='dow'){ const d=A.dPer[s.sym]; if(!d||!d.state) return ''; const st=d.state, v=d.v, p=v[v.length-1][1];
+      const bu=st.up&&p<st.l2.p, bd=st.dn&&p>st.h2.p, le=d.ev[d.ev.length-1];
+      const lbl=bu?'🟠 העלייה נשברה':bd?'🟠 הירידה נשברה':st.up?'🟢 מגמת עלייה':st.dn?'🔴 מגמת ירידה':'⚪ אין מגמה ברורה';
+      const line=bu?`המחיר ירד מתחת לשפל האחרון של העלייה (<b dir="ltr">${fmt(st.l2.p)}</b>, מ־${fd(st.l2.d)})${le&&le.dir==='down'?' ב־'+fd(le.d):''}. לפי דאו העלייה נגמרה – מחכים לראות אם תתחיל ירידה.`:bd?`המחיר עלה מעל השיא האחרון של הירידה (<b dir="ltr">${fmt(st.h2.p)}</b>, מ־${fd(st.h2.d)})${le&&le.dir==='up'?' ב־'+fd(le.d):''}. לפי דאו הירידה נגמרה – מחכים לראות אם תתחיל עלייה.`:st.up?`שיאים ושפלים עולים. העלייה תישבר אם המחיר ייסגר מתחת ל־<b dir="ltr">${fmt(st.l2.p)}</b> (השפל מ־${fd(st.l2.d)}).`:st.dn?`שיאים ושפלים יורדים. הירידה תישבר אם המחיר ייסגר מעל <b dir="ltr">${fmt(st.h2.p)}</b> (השיא מ־${fd(st.h2.d)}).`:`השיא האחרון <b dir="ltr">${fmt(st.h2.p)}</b>, השפל האחרון <b dir="ltr">${fmt(st.l2.p)}</b>.`;
+      return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> · ${lbl} · עכשיו <b dir="ltr">${fmt(p)}</b><div class="hint">${line}</div></div>`; }
+    const m=A.mPer[s.sym]; if(!m) return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> · <span class="hint">פחות ממאתיים ימי מסחר – אין עדיין ממוצע</span></div>`;
+    const v=m.v, p=v[v.length-1][1], ma=m.ma[m.ma.length-1], dist=p/ma-1;
+    return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> · ${p>=ma?'🟢 מעל הממוצע':'🔴 מתחת לממוצע'} · עכשיו <b dir="ltr">${fmt(p)}</b>, הממוצע <b dir="ltr">${fmt(ma)}</b> (<span dir="ltr">${pct(dist*100)}</span>)</div>`; }).filter(Boolean).join('')||'<p class="hint">ממתין לנתונים.</p>';
+  $('dowAssets').querySelectorAll('.leg[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+  const missing=S.symbols.filter(s=>!(S.full[s.sym]&&S.full[s.sym].values&&S.full[s.sym].values.length)).length;
+  $('dowNote').textContent=missing?('ל־'+missing+' נכסים יש כרגע רק ארבע שנים של נתונים.'):'הבדיקה רצה על כל ההיסטוריה.';
+}
+$('dowTabs').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; dowTab=b.dataset.t; renderDow(); };
+$('dowMin').onchange=()=>{ S.dowMin=$('dowMin').value; save(); renderDow(); scheduleAlert(); };
+$('dowLoadFull').onclick=()=>$('loadAllFull').onclick();
 $('sonMin').onchange=()=>{ S.sonMin=$('sonMin').value; save(); renderGann(); scheduleAlert(); };
 $('sonLoadFull').onclick=()=>$('loadAllFull').onclick();
 
@@ -1633,7 +1764,7 @@ function renderAlert(){
   const hot={}, sig={}, half={};
   const add=(sym,g)=>{ (sig[sym]=sig[sym]||[]).push(g); hot[sym]=true; };
   if(A.ready) A.items.forEach(x=>{ if(!(sig[x.s.sym]||[]).some(g=>g.kind==='time')) add(x.s.sym,{kind:'time',dir:x.last.t==='L'?'down':'up',short:'תאריך גאן '+whenTxt(x)}); });
-  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} try{ h=h.concat(corrSignal(s.sym)); }catch(e){} try{ h=h.concat(angSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
+  S.symbols.forEach(s=>{ let h=[]; try{ h=halfSignal(s.sym); }catch(e){} try{ h=h.concat(sonSignal(s.sym)); }catch(e){} try{ h=h.concat(corrSignal(s.sym)); }catch(e){} try{ h=h.concat(angSignal(s.sym)); }catch(e){} try{ h=h.concat(dowSignal(s.sym)); }catch(e){} if(h.length){ half[s.sym]=h; h.forEach(g=>add(s.sym,g)); } });
   const nHalf=Object.keys(half).length;
   if(!A.ready) ALERT={status:nHalf?'ok':'wait',items:[],valid:[],hot,sig,half};
   else ALERT={status:(A.items.length||nHalf)?'ok':(!A.valid.length?'novalid':'none'), items:A.items, valid:A.valid, hot, sig, half};
@@ -1643,7 +1774,7 @@ function renderAlert(){
   // cards on the home screen
   document.querySelectorAll('#grid .card').forEach(c=>{ const sym=c.dataset.sym, on=!!hot[sym]; c.classList.toggle('gannhot',on);
     c.querySelectorAll('.hotb').forEach(b=>b.remove());
-    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(g.kind==='time'?'⏰ ':g.kind==='son'?'🔢 ':g.kind==='ang'?'📏 ':g.kind.startsWith('corr')?'⏳ ':'📐 ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
+    if(on){ const desc=c.querySelector('.desc'); [...sig[sym]].reverse().forEach(g=>{ const b=document.createElement('div'); b.className='hotb '+(g.dir==='up'?'hup':'hdown'); b.textContent=(sigIcon(g.kind)+' ')+g.short+' '+(g.dir==='up'?'▲':'▼'); desc.after(b); }); }
     const cv=c.querySelector('canvas'); if(cv) spark(cv,sym); });
   // banner on the home screen – always says what is going on
   const box=$('gannAlert');
@@ -1659,7 +1790,7 @@ function renderAlert(){
 }
 function renderAlertsView(){
   const halfHtml=Object.entries(ALERT.half||{}).map(([sym,gs])=>{ const idx=S.symbols.findIndex(z=>z.sym===sym); if(idx<0) return ''; const s=S.symbols[idx], L=look(sym,idx);
-    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${g.kind==='son'?'🔢':g.kind==='ang'?'📏':g.kind.startsWith('corr')?'⏳':'📐'} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
+    return gs.map(g=>`<div class="al" data-sym="${esc(sym)}"><b>${L.i} ${esc(s.name)} · ${sigIcon(g.kind)} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲ כנראה כלפי מעלה':'▼ כנראה כלפי מטה'}</span></b><div>${g.txt}</div>${g.mean?`<div class="hint">${g.mean}</div>`:''}</div>`).join(''); }).join('');
   const timeHtml=ALERT.items.map(alertItemHtml).join('');
   $('alertsList').innerHTML=(timeHtml?'<h3>⏰ תאריכי גאן</h3>'+timeHtml:'')+(halfHtml?'<h3>📐 רמות מחיר ותיקונים</h3>'+halfHtml:'')||`<p class="hint">${statusTxt()}</p>${ALERT.status==='wait'?'<button id="alertLoad2" class="pri">טען עכשיו את ההיסטוריה המלאה</button>':''}`;
   $('alertsList').querySelectorAll('.al').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
@@ -1680,7 +1811,7 @@ const sigPlugin={id:'sig',afterDatasetsDraw(chart){
     ctx.moveTo(ax,y0+t*30); ctx.lineTo(ax-17,y0+t*8); ctx.lineTo(ax-7,y0+t*8); ctx.lineTo(ax-7,y0-t*22); ctx.lineTo(ax+7,y0-t*22); ctx.lineTo(ax+7,y0+t*8); ctx.lineTo(ax+17,y0+t*8); ctx.closePath();
     ctx.stroke(); ctx.fill();
     ctx.font='bold 12px Heebo,Arial'; ctx.textAlign='center'; ctx.fillStyle=c;
-    const lab=(g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='ang'?'📏 זווית':g.kind==='corrtime'?'⏳ תיקון ארוך':g.kind==='corrsize'?'⏳ תיקון עמוק':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
+    const lab=(g.kind==='dow'?'📊 דאו':g.kind==='ma'?'〰️ ממוצע 200':g.kind==='time'?'⏰ זמן':g.kind==='son'?'🔢 ריבוע 9':g.kind==='ang'?'📏 זווית':g.kind==='corrtime'?'⏳ תיקון ארוך':g.kind==='corrsize'?'⏳ תיקון עמוק':g.kind==='halfprice'?'📐 חצי מהשיא':'📐 החצי');
     ctx.fillText(lab,ax,up?y0+22+15:y0-22-7);
   });
   ctx.restore();
@@ -1720,8 +1851,8 @@ $('askCancel').onclick=()=>history.back();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann','alerts'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), alerts:()=>renderAlertsView()};
+const VIEWS=['trend','risk','gann','dow','alerts'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), alerts:()=>renderAlertsView()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
@@ -1751,8 +1882,9 @@ function applyState(st){
 $('riskBtn').onclick=()=>openView('risk');
 $('trendBtn').onclick=()=>openView('trend');
 $('gannBtn').onclick=()=>openView('gann');
+$('dowBtn').onclick=()=>openView('dow');
 $('alertBtn').onclick=()=>openView('alerts');
-['riskBack','trendBack','gannBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
+['riskBack','trendBack','gannBack','dowBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
@@ -1923,7 +2055,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiK
 async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
 
 if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
-$('timeMin').value=S.timeMin||'0.15'; $('sonMin').value=S.sonMin||'0.15'; $('angMin').value=S.angMin||'0.15'; gannTab=S.gannTab||'half';
+$('timeMin').value=S.timeMin||'0.15'; $('sonMin').value=S.sonMin||'0.15'; $('angMin').value=S.angMin||'0.15'; $('dowMin').value=S.dowMin||'0.08'; gannTab=S.gannTab||'half';
 renderGrid();
 initCache().then(()=>{
   renderGrid();
