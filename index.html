@@ -150,6 +150,9 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .dir{font-weight:700}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #f59e0b00}50%{box-shadow:0 0 0 5px #f59e0bAA;border-color:#f59e0b}}
 .blink{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b!important}
+@keyframes dglow{0%,100%{box-shadow:0 0 6px 1px #3b82f6aa}50%{box-shadow:0 0 18px 6px #60a5facc}}
+#diaBtn.lit{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border-color:#93c5fd!important;animation:dglow 1.6s ease-in-out infinite}
+.diacard{border:1px solid #3b82f6;background:linear-gradient(135deg,#1e3a8a33,#0b122000);border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer}
 .card.gannhot{animation:pulse 1.3s ease-in-out infinite;border-color:#f59e0b}
 .hotb{display:table;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-top:5px}
 .hotb.hup{background:#22c55e;color:#062}.hotb.hdown{background:#ef4444;color:#fff}
@@ -167,6 +170,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <button id="alertBtn">⏰ נקודות גאן <span class="cnt hidden" id="alertCnt"></span></button>
     <button id="gannBtn">📐 גאן</button>
     <button id="dowBtn">📊 דאו</button>
+    <button id="diaBtn">💎 היהלום <span class="cnt hidden" id="diaCnt"></span></button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
     <button id="refreshBtn">רענן עכשיו</button>
@@ -231,6 +235,16 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     </div>
     <div class="panel" id="dowSummary"></div>
     <div class="panel"><h3 style="margin-top:0">🔍 מה המצב עכשיו בכל נכס</h3><div id="dowAssets"></div></div>
+  </section>
+  <section id="diamond" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">💎 היהלום</h2><button id="diaBack">→ חזרה</button></div>
+      <div class="insight" style="margin-top:10px"><b>מתי היהלום נדלק:</b> רק כשבאותה מניה, באותם ימים ובאותו כיוון, יש <b>לפחות שני סימנים שונים של גאן</b> (החצי, תאריך גאן, ריבוע התשע, זווית או תיקון חריג) <b>וגם לפחות סימן אחד מדאו או מממוצע מאתיים הימים</b>. אם סימן אחד מצביע הפוך – היהלום לא נדלק.
+      <br>נספרים רק סימנים שעברו את הבדיקה מול המקרה (חוץ מהחצי, שנשען על ההיסטוריה של אותה מניה). לכן היהלום נדיר – וזה בכוונה.</div>
+    </div>
+    <div class="panel" id="diaNow"></div>
+    <div class="panel" id="diaNear"></div>
+    <div class="panel" id="diaHist"></div>
   </section>
   <section id="gann" class="hidden">
     <div class="panel">
@@ -967,29 +981,29 @@ async function runComboTest(onStep){
     if(mm) mm.ev.forEach(e=>{ if(DA.ma[e.dir]&&DA.ma[e.dir].pass) other.push({kind:'ma',dir:e.dir,d:e.d}); });
     const ctx={other,sym:s.sym,validN,sonValid,angOk,corr,Ptime:zigzagC(v,tT),Pson:zigzagC(v,sonT),Pang:zigzagC(v,angT),Pcorr:zigzagC(v,CORR_MAIN),kt:{n:0},ks:{n:0},ka:{n:0},kc:{n:0},angN:0,angU:0};
     const msOf=i=>new Date(v[i][0]+'T12:00:00').getTime();
-    let lastMs=0, prevKey='', j1=0, j3=0;
+    let lastMs=0, prevKey='', prevD='', j1=0, j3=0;
     for(let t=60;t<v.length;t++){
       const ms=msOf(t); if(ms-lastMs<7*864e5) continue; lastMs=ms;
       while(j1<v.length&&msOf(j1)<ms+30*864e5) j1++; while(j3<v.length&&msOf(j3)<ms+91*864e5) j3++;
       if(j3>=v.length) break;
-      const c=comboOf(btSignalsAt(v,t,ctx));
+      const sg=btSignalsAt(v,t,ctx), c=comboOf(sg), dm=diamondOf(sg), dk=dm.on?(dm.dir==='up'?'DU':'DD'):'';
       const key=c.lv>=2?(c.up.length?'U':'D'):c.n===1?(c.up.length?'u':'d'):c.lv===1&&c.n>1?'x':'0';
-      samples.push({sym:s.sym,key,first:key!==prevKey,r1:v[j1][1]/v[t][1]-1,r3:v[j3][1]/v[t][1]-1,d:v[t][0]});
-      prevKey=key;
+      samples.push({sym:s.sym,key,first:key!==prevKey,dk,firstD:dk&&dk!==prevD,r1:v[j1][1]/v[t][1]-1,r3:v[j3][1]/v[t][1]-1,d:v[t][0]});
+      prevKey=key; prevD=dk;
     }
     done++; if(onStep) onStep(done,S.symbols.length); await new Promise(r=>setTimeout(r,0));
   }
   // compare each kind of signal with random days of the same assets
   const bySym={}; samples.forEach(x=>(bySym[x.sym]=bySym[x.sym]||[]).push(x));
   const r=rng(99); const res={n:samples.length,base:{up3:samples.filter(x=>x.r3>0).length/Math.max(1,samples.length)},groups:{}};
-  ['U','D','u','d'].forEach(k=>{
-    const ev=samples.filter(x=>x.key===k&&x.first); if(!ev.length){ res.groups[k]={n:0}; return; }
-    const good=x=>k==='U'||k==='u'?x.r3>0:x.r3<0;
+  ['U','D','u','d','DU','DD'].forEach(k=>{
+    const ev=k[0]==='D'&&k.length===2?samples.filter(x=>x.dk===k&&x.firstD):samples.filter(x=>x.key===k&&x.first); if(!ev.length){ res.groups[k]={n:0}; return; }
+    const good=x=>k==='U'||k==='u'||k==='DU'?x.r3>0:x.r3<0;
     const real=ev.filter(good).length/ev.length;
     const fk=[]; for(let t=0;t<300;t++){ let g=0; ev.forEach(e=>{ const pool=bySym[e.sym]; const z=pool[Math.floor(r()*pool.length)]; if(good(z)) g++; }); fk.push(g/ev.length); }
     const fb=fk.reduce((a,b)=>a+b,0)/fk.length, pv=fk.filter(x=>x>=real).length/fk.length;
     const avg=ev.reduce((a,x)=>a+x.r3,0)/ev.length;
-    res.groups[k]={n:ev.length,real,fake:fb,pv,avg,ex:ev.slice(-3)};
+    res.groups[k]={n:ev.length,real,fake:fb,pv,avg,ex:ev.slice().sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).slice(-3)};
   });
   BT=res; return res;
 }
@@ -1010,6 +1024,47 @@ function comboTestHtml(R){
     ${row('U')}${row('D')}${row('u')}${row('d')}
     <div class="insight"><b>בשורה התחתונה:</b> ${bottom}</div>
     <p class="hint">הסתייגות אחת: ההחלטה אילו שיטות עברו את הבדיקה נעשתה על כל ההיסטוריה, כולל העתיד של כל שבוע. לכן התוצאה כאן קצת אופטימית מהמציאות.</p>`;
+}
+
+/* ---------- the diamond: at least two different Gann signals + Dow or the 200-day average, all the same way ---------- */
+const GANN_K=new Set(['time','half','halfprice','halfbreak','son','corrtime','corrsize','ang']), OTHER_K=new Set(['dow','ma']);
+function diamondOf(gs){
+  const fam={}; gs.forEach(g=>{ const f=FAM[g.kind]||g.kind; (fam[f]=fam[f]||{k:g.kind,dirs:new Set()}).dirs.add(g.dir); });
+  const dirs=new Set(gs.map(g=>g.dir)); if(dirs.size!==1) return {on:false,gann:[],other:[],dir:null,mixed:dirs.size>1};
+  const dir=[...dirs][0], F=Object.entries(fam);
+  const gann=F.filter(([f,x])=>GANN_K.has(x.k)).map(([f])=>f), other=F.filter(([f,x])=>OTHER_K.has(x.k)).map(([f])=>f);
+  return {on:gann.length>=2&&other.length>=1, gann, other, dir, mixed:false};
+}
+function diamonds(){ return S.symbols.map((s,idx)=>({s,idx,d:diamondOf((ALERT.sig||{})[s.sym]||[])})); }
+function updateDiamondBtn(){
+  const n=diamonds().filter(x=>x.d.on).length;
+  $('diaBtn').classList.toggle('lit',n>0); $('diaCnt').textContent=n; $('diaCnt').classList.toggle('hidden',!n);
+}
+function renderDiamond(){
+  const all=diamonds(), on=all.filter(x=>x.d.on);
+  const sigList=sym=>((ALERT.half||{})[sym]||[]).map(g=>`<div class="al"><b>${sigIcon(g.kind)} ${g.short} <span class="dir ${g.dir==='up'?'up':'down'}">${g.dir==='up'?'▲':'▼'}</span></b><div>${g.txt}</div></div>`).join('')+((ALERT.items||[]).filter(x=>x.s.sym===sym).map(alertItemHtml).join(''));
+  $('diaNow').innerHTML=`<h3 style="margin-top:0">💎 יהלומים עכשיו</h3>`+(on.length?on.map(({s,idx,d})=>{ const L=look(s.sym,idx), q=S.quotes[s.sym]||{};
+    return `<div class="diacard" data-sym="${esc(s.sym)}"><div class="r" style="display:flex;justify-content:space-between"><b>${L.i} ${esc(s.name)}</b><b dir="ltr">${q.price!=null?fmt(q.price):''}</b></div>
+      <div style="font-size:16px;margin:6px 0"><b class="${d.dir==='up'?'up':'down'}">${d.dir==='up'?'▲ כל השיטות מצביעות כלפי מעלה':'▼ כל השיטות מצביעות כלפי מטה'}</b></div>
+      <div class="hint">גאן: ${d.gann.join(', ')} · ושיטות נוספות: ${d.other.join(', ')}</div>${sigList(s.sym)}</div>`; }).join('')
+    :'<p><b>כרגע אין יהלום.</b> <span class="hint">אף מניה לא עומדת עכשיו בכל התנאים. זה המצב הרגיל – כשיהיה, הכפתור למעלה יאיר בכחול.</span></p>');
+  const near=all.filter(x=>!x.d.on&&!x.d.mixed&&(x.d.gann.length+x.d.other.length)>=2);
+  $('diaNear').innerHTML=`<h3 style="margin-top:0">🔎 קרובים ליהלום</h3><p class="hint">מניות שיש להן כבר שני סימנים לאותו כיוון, אבל חסר עוד תנאי.</p>`+(near.length?near.map(({s,idx,d})=>{ const L=look(s.sym,idx);
+    const miss=d.gann.length<2?'חסר עוד סימן של גאן':'חסר סימן מדאו או מהממוצע';
+    return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> · <span class="${d.dir==='up'?'up':'down'}">${d.dir==='up'?'▲':'▼'}</span> ${d.gann.concat(d.other).join(', ')} · <span class="hint">${miss}</span></div>`; }).join(''):'<p class="hint">אין כרגע.</p>');
+  const H=BT&&BT.groups.DU?BT:null;
+  $('diaHist').innerHTML=`<h3 style="margin-top:0">🔬 האם יהלום עבד בעבר?</h3>`+(H?diaHistHtml(H):'<p class="hint">הבדיקה עוברת שבוע אחרי שבוע על כל ההיסטוריה, מחשבת אם היה יהלום רק לפי מה שהיה ידוע באותו יום, ובודקת מה קרה למחיר שלושה חודשים אחר כך. זה לוקח עד חצי דקה.</p><button id="diaRun" class="pri">בדוק את היהלום על העבר</button>');
+  const b=$('diaRun'); if(b) b.onclick=async()=>{ b.disabled=true; try{ await runComboTest((d,n)=>{ b.textContent='בודק… '+d+' מתוך '+n; }); renderDiamond(); }catch(e){ b.textContent='משהו השתבש – נסה שוב'; b.disabled=false; } };
+  document.querySelectorAll('#diamond [data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+}
+function diaHistHtml(R){
+  const row=(k,up)=>{ const g=R.groups[k]; const nm=up?'💎 ▲ יהלום כלפי מעלה':'💎 ▼ יהלום כלפי מטה';
+    if(!g.n) return `<div class="gbox" style="margin-bottom:8px"><b>${nm}</b><div class="hint">לא קרה אף פעם בהיסטוריה שלך.</div></div>`;
+    const ok=g.n>=15&&g.pv<=0.01, few=g.n<15;
+    return `<div class="gbox" style="margin-bottom:8px"><div class="r"><b>${nm}</b><span class="wt ${ok?'wt0':few?'wt1':'wt3'}">${ok?'עבד יותר ממקרה':few?'מעט מדי מקרים':'לא יותר ממקרה'}</span></div>
+      <div class="hint">קרה ${g.n} פעמים. שלושה חודשים אחר כך המחיר היה ${up?'גבוה':'נמוך'} יותר ב־${pc(g.real)} מהפעמים (ביום רגיל: ${pc(g.fake)}). השינוי הממוצע: ${pct(g.avg*100)}.</div>
+      ${g.ex&&g.ex.length?`<div class="hint">הפעמים האחרונות: ${g.ex.map(e=>`${esc((S.symbols.find(x=>x.sym===e.sym)||{name:e.sym}).name)} ב־${fd(e.d)} (${pct(e.r3*100)} אחרי שלושה חודשים)`).join(' · ')}</div>`:''}</div>`; };
+  return row('DU',true)+row('DD',false)+`<p class="hint">כשיש מעט מקרים, אי אפשר לדעת אם זה עובד – גם אם האחוזים נראים טובים. ההחלטה אילו שיטות נספרות נעשתה על כל ההיסטוריה, ולכן התוצאה קצת אופטימית מהמציאות.</p>`;
 }
 function comboHtml(c){ return `<div class="combo ${c.cls}"><div class="lv">🧭 האות המשולב של גאן: ${c.name}</div>${c.up.length?'<div>▲ בעד עלייה: '+c.up.join(', ')+'</div>':''}${c.down.length?'<div>▼ בעד ירידה: '+c.down.join(', ')+'</div>':''}</div>`; }
 function renderCombo(){
@@ -1771,6 +1826,7 @@ function renderAlert(){
   // header button blinks when something is due
   const n=Object.keys(hot).length;
   $('alertBtn').classList.toggle('blink',n>0); $('alertCnt').textContent=n; $('alertCnt').classList.toggle('hidden',!n);
+  try{ updateDiamondBtn(); if(!$('diamond').classList.contains('hidden')) renderDiamond(); }catch(e){}
   // cards on the home screen
   document.querySelectorAll('#grid .card').forEach(c=>{ const sym=c.dataset.sym, on=!!hot[sym]; c.classList.toggle('gannhot',on);
     c.querySelectorAll('.hotb').forEach(b=>b.remove());
@@ -1851,8 +1907,8 @@ $('askCancel').onclick=()=>history.back();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann','dow','alerts'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), alerts:()=>renderAlertsView()};
+const VIEWS=['trend','risk','gann','dow','diamond','alerts'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), alerts:()=>renderAlertsView()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
@@ -1883,8 +1939,9 @@ $('riskBtn').onclick=()=>openView('risk');
 $('trendBtn').onclick=()=>openView('trend');
 $('gannBtn').onclick=()=>openView('gann');
 $('dowBtn').onclick=()=>openView('dow');
+$('diaBtn').onclick=()=>openView('diamond');
 $('alertBtn').onclick=()=>openView('alerts');
-['riskBack','trendBack','gannBack','dowBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
+['riskBack','trendBack','gannBack','dowBack','diaBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
