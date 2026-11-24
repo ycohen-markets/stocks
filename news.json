@@ -1,0 +1,96 @@
+{
+  "updated": "24/11/2026, 20:30 שעון ישראל",
+  "items": [
+    {
+      "id": "2026-11-24",
+      "date": "2026-11-24",
+      "when": "יום שלישי, 24/11/2026 – נכון לצהריים בניו יורק, המסחר עוד לא נגמר",
+      "level": "big",
+      "title": "אחרי העלייה הענקית – מניות השבבים והבינה המלאכותית יורדות שוב",
+      "what": "יום אחרי אחת העליות הגדולות בשנים האחרונות, חלק גדול ממנה נמחק. נכון לצהריים בניו יורק, הנאסדק ירד בערך 2% והאס אנד פי בערך 1%. אנבידיה ירדה בערך 7% עד 9%, וקרן השבבים ירדה בערך 7%. מנגד, מדד הדאו ג'ונס דווקא עלה מעט – כי הירידה מרוכזת כמעט כולה בשבבים ובבינה מלאכותית, ולא בכל השוק.",
+      "why": [
+        "חזרו הספקות אם ההשקעות העצומות בבינה מלאכותית ימשיכו ויחזירו את עצמן. לפי דיווח בוול סטריט ג'ורנל, זה מה שהפיל שוב את מניות הטכנולוגיה.",
+        "לקיחת רווחים: אחרי עלייה של עשרות אחוזים ביום אחד, הרבה משקיעים מכרו כדי לממש את הרווח.",
+        "אנליסטים הזכירו שוב את הבדיקה האמריקאית סביב מכירת שבבים של אנבידיה לסין, וארצות הברית הוסיפה לרשימה השחורה שלה חברה בשם מגה־ספיד ויחידה של עליבאבא בסינגפור.",
+        "מניית אנתרופיק ירדה בערך 8%, וזה החליש עוד יותר את כל תחום הבינה המלאכותית.",
+        "דווח על תוכנית מכסים אמריקאית חדשה נגד 16 שותפות סחר, וזה החזיר את החשש ממלחמת סחר."
+      ],
+      "impact": "התנודות במניות השבבים והבינה המלאכותית עכשיו קיצוניות – עשרות אחוזים בשבוע לשני הכיוונים. כל עוד השאלה אם השקעות הבינה המלאכותית ישתלמו לא נפתרת, צפויים עוד ימים כאלה. מניות מחוץ לתחום (כמו מדד הדאו) מושפעות הרבה פחות. חשוב: זה הסבר של מה שקרה, לא תחזית ולא המלצה.",
+      "assets": [
+        {"sym": "NVDA", "note": "בלב הסערה. עלתה 31% ביום שני ויורדת בערך 7% עד 9% היום."},
+        {"sym": "ANT", "note": "ירדה בערך 8% היום, והחלישה את כל תחום הבינה המלאכותית."},
+        {"sym": "AMD", "note": "ירדה בבוקר בערך 3% עד 4% יחד עם שאר השבבים."},
+        {"sym": "MU", "note": "ירדה בבוקר בערך 3% עד 4%, אחרי עלייה של 19% ביום שני."},
+        {"sym": "GLD", "note": "הזהב ירד היום בערך 2%."},
+        {"sym": "MSFT", "note": "דווקא עלתה בערך 1% – לא כל הטכנולוגיה יורדת."}
+      ],
+      "unsure": "המסחר היום עוד לא נגמר, והמספרים יכולים להשתנות עד הסגירה.",
+      "sources": [
+        {"t": "Motley Fool – Nvidia Drops 9% as Wall Street's Historic AI Rally Loses Momentum", "u": "https://www.fool.com/coverage/stock-market-today/2026/11/24/stock-market-midday-nov-24-nvidia-drops-9-as-wall-street-s-historic-ai-rally-loses-momentum/"},
+        {"t": "Sell The News – US stocks retreat as AI doubts deepen technology selloff", "u": "https://sellthenews.org/catalyx/market/2026-11-24"},
+        {"t": "TipRanks – Markets Turn Jittery Even as Huang Returns to Nvidia", "u": "https://www.tipranks.com/news/stock-market-today-nov-24-markets-turn-jittery-even-as-huang-returns-to-nvidia"},
+        {"t": "The Weekend Spread – The Open: Tuesday, November 24, 2026", "u": "https://theweekendspread.substack.com/p/the-open-tuesday-november-24-2026"}
+      ]
+    },
+    {
+      "id": "2026-11-23",
+      "date": "2026-11-23",
+      "when": "יום שני, 23/11/2026",
+      "level": "big",
+      "title": "העלייה הגדולה מאז אפריל 2025: ג'נסן הואנג חוזר לנהל את אנבידיה",
+      "what": "השוק האמריקאי זינק: הנאסדק עלה 6.5%, האס אנד פי 4.7% והדאו 3%. זה היום הטוב ביותר של האס אנד פי מאז אפריל 2025, והוא יצא מ'תיקון' (ירידה של יותר מ־10% מהשיא). אנבידיה זינקה 31% – העלייה הגדולה שלה ביום אחד מאז 2003 – ומדד מניות השבבים עלה 14%.",
+      "why": [
+        "דירקטוריון אנבידיה החזיר את ג'נסן הואנג לתפקיד המנכ\"ל, מיד. הואנג פרש ב־12 בנובמבר, אחרי שהודה בקשר עם אישה שנחשדת כמרגלת סינית. הפרישה שלו הייתה אחת הסיבות לנפילה של השבוע שעבר.",
+        "לפי דיווחים, הנשיא טראמפ תיווך בהסכם בין הואנג לדירקטוריון.",
+        "השוק ירד מאוד בשבוע שלפני כן, ולכן הייתה הרבה 'אנרגיה' לעלייה חדה: משקיעים שהימרו על ירידה מיהרו לקנות בחזרה.",
+        "מיקרון זינקה 19% גם בזכות הסכמים רב־שנתיים חדשים לאספקת זיכרון ללקוחות."
+      ],
+      "impact": "היום הזה הראה כמה השוק האמריקאי כולו תלוי בתחום אחד – הבינה המלאכותית, ובחברה אחת – אנבידיה. למחרת, בבורסות באסיה, טאיוואן זינקה קרוב ל־9% וטי־אס־אם־סי עלתה כמעט 10% – המקסימום המותר ביום שם. אבל ביום שלישי חלק גדול מהעלייה כבר נמחק.",
+      "assets": [
+        {"sym": "NVDA", "note": "זינקה 31%, העלייה הגדולה ביום אחד מאז 2003."},
+        {"sym": "MU", "note": "זינקה 19%."},
+        {"sym": "TSM", "note": "באסיה, למחרת, עלתה כמעט 10% – המקסימום היומי בטאיוואן."},
+        {"sym": "SPY", "note": "עלה 4.7%, היום הטוב ביותר מאז אפריל 2025."},
+        {"sym": "QQQ", "note": "הנאסדק עלה 6.5% עד 6.9%."}
+      ],
+      "sources": [
+        {"t": "Bloomberg – Stocks Jump Most Since April 2025 as Huang Is Back", "u": "https://www.bloomberg.com/news/articles/2026-11-22/asia-braces-for-more-volatility-after-us-selloff-markets-wrap"},
+        {"t": "Yahoo Finance – Markets Rebound From Correction on AI Relief Rally", "u": "https://finance.yahoo.com/markets/stocks/articles/stock-market-today-nov-23-221613542.html"},
+        {"t": "AP via TV News Check – Dow Jumps 1,448; Nasdaq Surges 1,472", "u": "https://tvnewscheck.com/business/article/dow-jumps-1448-nasdaq-surges-1472-sp-500-rallies-327/"},
+        {"t": "TipRanks – Huang Returns to Nvidia", "u": "https://www.tipranks.com/news/stock-market-today-nov-24-markets-turn-jittery-even-as-huang-returns-to-nvidia"},
+        {"t": "IC Markets – US Stocks Surge as Nvidia Reinstatement Sparks Massive Tech Rally", "u": "https://ic.com/blog/general-market-analysis-24-november-2026-ic"}
+      ]
+    },
+    {
+      "id": "2026-11-20",
+      "date": "2026-11-20",
+      "when": "יום שישי, 20/11/2026 – הרקע לכל זה",
+      "level": "big",
+      "title": "השבוע הגרוע ביותר מאז תחילת הקורונה: נפילה במניות הבינה המלאכותית",
+      "what": "ביום שישי האס אנד פי ירד 3.7% – היום השביעי ברצף של ירידות – ונכנס ל'תיקון', יותר מ־10% מתחת לשיא של 6 באוקטובר. הנאסדק ירד 5.3% ומחק את כל העלייה שלו מתחילת 2026. בכל השבוע הנאסדק ירד בערך 10% והאס אנד פי יותר מ־8%. אנבידיה ירדה 14% ביום אחד, לנקודה הנמוכה שלה ב־18 חודשים.",
+      "why": [
+        "סוכנות רויטרס דיווחה שרשות ניירות הערך האמריקאית בודקת אי־סדרים חשבונאיים אפשריים באנבידיה. יום קודם, התובע הכללי של קליפורניה דרש מהחברה מסמכים בשאלה אם השבבים שלה הגיעו לסין.",
+        "ברודקום ירדה 12% בגלל דיווחים לא מאושרים שגוגל תקצץ את הזמנות השבבים שלה לשנה הבאה.",
+        "ההנפקה של אנתרופיק לא החזירה את ההתלהבות – להפך, משקיעים ניצלו אותה כדי לממש רווחים מתחום הבינה המלאכותית.",
+        "סימנים שהחברות הגדולות מאטות את קצב ההשקעה בתשתיות, תוצאות בחירות האמצע, והפרישה של הואנג – כל אלה העלו שאלות על עתיד בניית הבינה המלאכותית.",
+        "גדלו גם ההימורים שהבנק המרכזי האמריקאי יעלה את הריבית."
+      ],
+      "impact": "זה הרקע לשני הימים האחרונים: השוק היה בירידה חדה, ולכן חדשה טובה אחת (חזרת הואנג) הקפיצה אותו בחדות, וספק אחד הוריד אותו שוב. גם הביטקוין נפל באותה תקופה – שישה שבועות ברצף של ירידות, לבערך 64 אלף דולר ב־18 בנובמבר – בין השאר בגלל הציפייה להעלאת ריבית ויציאת כסף מקרנות הביטקוין.",
+      "assets": [
+        {"sym": "NVDA", "note": "ירדה 14% ביום שישי, אחרי הדיווח על בדיקה חשבונאית."},
+        {"sym": "AVGO", "note": "ירדה 12% עד 14% בגלל הדיווח על גוגל."},
+        {"sym": "AMD", "note": "ירדה יותר מ־13% ביום שישי."},
+        {"sym": "BTC/USD", "note": "שישה שבועות ברצף של ירידות, לבערך 64 אלף דולר באמצע נובמבר."},
+        {"sym": "MSTR", "note": "נפלה יחד עם הביטקוין; באמצע נובמבר גם הוצאה ממדדי MSCI."}
+      ],
+      "sources": [
+        {"t": "CNBC – S&P 500 and Dow close in correction; Nasdaq erases 2026 gain", "u": "https://www.cnbc.com/2026/11/19/stock-market-today-live-updates.html"},
+        {"t": "Yahoo Finance – Stocks Plunge as AI Trade Unwinds", "u": "https://finance.yahoo.com/markets/stocks/articles/stock-market-today-nov-20-223513707.html"},
+        {"t": "UPI – Dow, S&P 500 enter correction as Nasdaq plunges", "u": "https://www.upi.com/Top_News/US/2026/11/20/stocks-dow-jones-nasdaq-correction-territory/1061795214998/"},
+        {"t": "Zentrix – Why Did NVIDIA Stock Fall Friday?", "u": "https://zentrix.ai/why-is-nvidia-stock-moving/"},
+        {"t": "HNGN – Wall Street Plunges Into Correction as AI Selloff Erases Nasdaq's 2026 Gains", "u": "https://www.hngn.com/articles/273903/20261120/wall-street-plunges-correction-ai-selloff-erases-nasdaqs-2026-gains.htm"},
+        {"t": "Coinalyze news feed (Bitcoin, Strategy and MSCI)", "u": "https://coinalyze.net/bitcoin/usd/deribit/btc-19nov26/price-chart-live/"}
+      ]
+    }
+  ]
+}

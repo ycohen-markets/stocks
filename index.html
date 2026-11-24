@@ -136,6 +136,8 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
 .bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
 .lnk .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;border-bottom:1px solid #ffffff12;font-size:14px}.lnk .r b{text-align:left}
+.nitem{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#ffffff06}.nitem.big{border-color:#f59e0b}.nitem h4{margin:2px 0 4px;font-size:17px;line-height:1.4}.nitem .nd{font-size:12.5px;color:var(--mut,#8b96ad)}.nitem p{margin:8px 0;line-height:1.6;font-size:15px}.nitem .lab{font-weight:700;margin-top:10px;font-size:15px}.nitem ul{margin:4px 0;padding-right:18px}.nitem li{margin:3px 0;line-height:1.55;font-size:14.5px}.nitem .src a{color:#93c5fd;font-size:12.5px;word-break:break-all}
+#newsModal .box{width:min(560px,94vw);max-height:86vh;overflow:auto}
 .kv{margin-top:6px}.kv .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border-bottom:1px solid #ffffff12;font-size:14px}.kv .r b{white-space:nowrap}.kv .sub{font-size:13px;color:var(--mut,#8b96ad);padding:0 10px 6px 0}
 .combo{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55;background:#8b96ad1a;border-right:3px solid #8b96ad}.combo.cup{background:#22c55e22;border-right-color:#22c55e}.combo.cdown{background:#ef444422;border-right-color:#ef4444}.combo .lv{font-weight:700}
 .risk{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
@@ -170,6 +172,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <button id="alertBtn">⏰ נקודות גאן <span class="cnt hidden" id="alertCnt"></span></button>
     <button id="gannBtn">📐 גאן</button>
     <button id="dowBtn">📊 דאו</button>
+    <button id="newsBtn">📰 חדשות <span class="cnt hidden" id="newsCnt"></span></button>
     <button id="diaBtn">💎 היהלום <span class="cnt hidden" id="diaCnt"></span></button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
@@ -245,6 +248,14 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel" id="diaNow"></div>
     <div class="panel" id="diaNear"></div>
     <div class="panel" id="diaHist"></div>
+  </section>
+  <section id="news" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📰 חדשות – מה קרה ולמה</h2><button id="newsBack">→ חזרה</button></div>
+      <p class="hint">כאן מופיע הסבר של Claude על מה שקרה בשווקים, למה, ואיך זה יכול להשפיע על המניות שלך – עם קישורים למקורות. ההסבר מתעדכן פעם ביום, אחרי סגירת המסחר בארצות הברית. כשיש חדשה דרמטית, היא נפתחת לבד כשפותחים את האפליקציה.</p>
+      <div id="newsMoves"></div>
+    </div>
+    <div id="newsList"></div>
   </section>
   <section id="gann" class="hidden">
     <div class="panel">
@@ -403,6 +414,13 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   </section>
 </main>
 
+<div id="newsModal" class="modal hidden">
+  <div class="box">
+    <div class="row" style="justify-content:space-between"><h3 style="margin:0">📰 מה קרה בשווקים</h3><button id="newsClose">סגירה</button></div>
+    <div id="newsModalBody" style="margin-top:10px"></div>
+    <div class="row"><button id="newsMore">לכל החדשות</button></div>
+  </div>
+</div>
 <div id="askModal" class="modal hidden">
   <div class="box">
     <h3 style="margin-top:0">💬 לשאול את Claude על <span id="askName"></span></h3>
@@ -1907,8 +1925,8 @@ $('askCancel').onclick=()=>history.back();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann','dow','diamond','alerts'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), alerts:()=>renderAlertsView()};
+const VIEWS=['trend','risk','gann','dow','diamond','news','alerts'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), news:()=>renderNews(), alerts:()=>renderAlertsView()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
@@ -1940,11 +1958,13 @@ $('trendBtn').onclick=()=>openView('trend');
 $('gannBtn').onclick=()=>openView('gann');
 $('dowBtn').onclick=()=>openView('dow');
 $('diaBtn').onclick=()=>openView('diamond');
+$('newsBtn').onclick=()=>openView('news');
 $('alertBtn').onclick=()=>openView('alerts');
-['riskBack','trendBack','gannBack','dowBack','diaBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
+['riskBack','trendBack','gannBack','dowBack','diaBack','newsBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
+  if(!$('newsModal').classList.contains('hidden')){ closeNewsModal(); if(newsThen){ const v=newsThen; newsThen=null; setTimeout(()=>openView(v),0); } return; }
   if(!$('noteModal').classList.contains('hidden')){ $('noteModal').classList.add('hidden'); return; }
   if(!$('askModal').classList.contains('hidden')){ $('askModal').classList.add('hidden'); return; }
   if(!$('settings').classList.contains('hidden')){ $('settings').classList.add('hidden'); if(pendingView){ const v=pendingView; pendingView=null; openView(v); } return; }
@@ -2105,11 +2125,67 @@ $('saveKey').onclick=async ()=>{
 };
 $('refreshBtn').onclick=()=>refreshQuotes();
 
+
+/* ---------- news: written once a day by Claude into news.json; dramatic news opens by itself ---------- */
+let NEWS=null;
+function seenNews(){ try{ return JSON.parse(localStorage.getItem('st_news_seen')||'[]'); }catch(e){ return []; } }
+function markSeen(ids){ try{ const s=new Set(seenNews()); ids.forEach(i=>s.add(i)); localStorage.setItem('st_news_seen',JSON.stringify([...s].slice(-200))); }catch(e){} }
+async function loadNews(){
+  try{ const r=await fetch('news.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) return; NEWS=await r.json(); }catch(e){ return; }
+  updateNewsBtn();
+  const seen=new Set(seenNews()), fresh=(NEWS.items||[]).filter(x=>x.level==='big'&&!seen.has(x.id));
+  if(fresh.length&&$('settings').classList.contains('hidden')&&$('setup').classList.contains('hidden')) openNewsModal(fresh);
+  if(!$('news').classList.contains('hidden')) renderNews();
+}
+function updateNewsBtn(){
+  const seen=new Set(seenNews()), n=((NEWS&&NEWS.items)||[]).filter(x=>!seen.has(x.id)).length;
+  $('newsCnt').textContent=n; $('newsCnt').classList.toggle('hidden',!n); $('newsBtn').classList.toggle('blink',((NEWS&&NEWS.items)||[]).some(x=>x.level==='big'&&!seen.has(x.id)));
+}
+function newsItemHtml(x,open){
+  const nm=sym=>{ const s=S.symbols.find(y=>y.sym===sym); return s?s.name:sym; };
+  const mine=(x.assets||[]).filter(a=>S.symbols.some(y=>y.sym===a.sym));
+  return `<div class="nitem ${x.level==='big'?'big':''}">
+    <div class="nd">${esc(x.when||x.date||'')}${x.level==='big'?' · ⚠️ דרמטי':''}</div>
+    <h4>${esc(x.title)}</h4>
+    <p>${esc(x.what||'')}</p>
+    ${open?`${(x.why||[]).length?`<div class="lab">למה זה קרה</div><ul>${x.why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${x.impact?`<div class="lab">איך זה יכול להשפיע</div><p>${esc(x.impact)}</p>`:''}
+    ${mine.length?`<div class="lab">המניות שלך</div><ul>${mine.map(a=>`<li><b>${esc(nm(a.sym))}</b> – ${esc(a.note)}</li>`).join('')}</ul>`:''}
+    ${x.unsure?`<p class="hint">❓ ${esc(x.unsure)}</p>`:''}
+    ${(x.sources||[]).length?`<div class="lab">מקורות</div><div class="src">${x.sources.map(c=>`<div><a href="${esc(c.u)}" target="_blank" rel="noopener">${esc(c.t)}</a></div>`).join('')}</div>`:''}`
+    :`<button class="nopen" data-id="${esc(x.id)}">להסבר המלא</button>`}
+  </div>`;
+}
+function openNewsModal(items){
+  items=items.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  $('newsModalBody').innerHTML=items.map((x,i)=>newsItemHtml(x,i===0)).join('');
+  $('newsModalBody').querySelectorAll('.nopen').forEach(b=>b.onclick=()=>{ const it=items.find(x=>x.id===b.dataset.id); b.parentElement.outerHTML=newsItemHtml(it,true); });
+  $('newsModal').dataset.ids=JSON.stringify(items.map(x=>x.id));
+  $('newsModal').classList.remove('hidden'); history.pushState({layer:history.state&&history.state.layer,modal:'news',sym:history.state&&history.state.sym},'');
+}
+function closeNewsModal(){ try{ markSeen(JSON.parse($('newsModal').dataset.ids||'[]')); }catch(e){} $('newsModal').classList.add('hidden'); updateNewsBtn(); }
+let newsThen=null;
+$('newsClose').onclick=()=>history.back();
+$('newsMore').onclick=()=>{ newsThen='news'; history.back(); };
+function unusualMoves(){
+  // what the app itself sees today: big moves of the whole market or of single assets
+  const idx=new Set(['SPY','QQQ','DIA','EIS']), out=[];
+  S.symbols.forEach((s,i)=>{ const q=S.quotes[s.sym]; if(!q||q.pct==null) return; const lim=idx.has(s.sym)?2:s.sym==='BTC/USD'||s.sym==='MSTR'?8:6; if(Math.abs(q.pct)>=lim) out.push({s,i,q}); });
+  return out.sort((a,b)=>Math.abs(b.q.pct)-Math.abs(a.q.pct));
+}
+function renderNews(){
+  const mv=unusualMoves();
+  $('newsMoves').innerHTML=`<h4>⚡ תנועות חריגות שהאפליקציה רואה עכשיו</h4>`+(mv.length?mv.map(({s,i,q})=>{ const L=look(s.sym,i); return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> <b dir="ltr" class="${q.pct>=0?'up':'down'}">${pct(q.pct)}</b> · עכשיו <b dir="ltr">${fmt(q.price)}</b></div>`; }).join(''):'<p class="hint">אין כרגע תנועות חריגות במחירים.</p>');
+  $('newsMoves').querySelectorAll('[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
+  const items=((NEWS&&NEWS.items)||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  $('newsList').innerHTML=items.length?`<div class="panel">${NEWS.updated?`<p class="hint">עודכן: ${esc(NEWS.updated)}</p>`:''}${items.map(x=>newsItemHtml(x,true)).join('')}</div>`:'<div class="panel"><p class="hint">עוד אין חדשות. העדכון הראשון יגיע אחרי סגירת המסחר הבאה.</p></div>';
+  markSeen(items.map(x=>x.id)); updateNewsBtn();
+}
 /* ---------- loop ---------- */
 let timer=null;
 function startTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden){ refreshQuotes(); if(S.symbols.some(x=>!S.hist[x.sym]||S.hist[x.sym].date!==today())) loadAllHistory(); } }, S.interval*60000); }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); if(S.symbols.some(x=>!S.hist[x.sym]||S.hist[x.sym].date!==today())) loadAllHistory(); } });
-async function start(){ renderGrid(); startTimer(); await refreshQuotes(); loadAllHistory(); }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) loadNews(); if(!document.hidden && S.apiKey){ const last=Math.max(0,...Object.values(S.quotes).map(q=>q.t||0)); if(Date.now()-last>S.interval*60000) refreshQuotes(); if(S.symbols.some(x=>!S.hist[x.sym]||S.hist[x.sym].date!==today())) loadAllHistory(); } });
+async function start(){ renderGrid(); startTimer(); loadNews(); await refreshQuotes(); loadAllHistory(); }
 
 if(S.halfMin) $('halfMin').value=S.halfMin; else $('halfMin').value='0.2';
 $('timeMin').value=S.timeMin||'0.15'; $('sonMin').value=S.sonMin||'0.15'; $('angMin').value=S.angMin||'0.15'; $('dowMin').value=S.dowMin||'0.08'; gannTab=S.gannTab||'half';
