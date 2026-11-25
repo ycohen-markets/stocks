@@ -338,10 +338,20 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 
   <section id="trend" class="hidden">
     <div class="panel">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📈 במגמת עלייה בחצי השנה האחרונה</h2><button id="trendBack">→ חזרה</button></div>
-      <p class="hint">נכס נכנס לרשימה אם מתקיימים בו שני תנאים: המחיר היום גבוה מהמחיר לפני חצי שנה, והמחיר היום מעל הממוצע שלו בחצי השנה הזו. מגמה חזקה: עלייה של יותר מעשרים אחוז. לחיצה על שורה פותחת את הנכס.</p>
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">📈 מגמת עלייה</h2><button id="trendBack">→ חזרה</button></div>
+      <p class="hint">יש כאן שתי רשימות: חצי שנה ושנה. נכס נכנס לרשימה אם מתקיימים בו שני תנאים: המחיר היום גבוה מהמחיר בתחילת התקופה, והמחיר היום מעל הממוצע שלו בתקופה הזו. לחיצה על שורה פותחת את הנכס.</p>
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 6px">במגמת עלייה בחצי השנה האחרונה</h3>
+      <p class="hint">מגמה חזקה: עלייה של יותר מ־20% בחצי שנה.</p>
       <div id="trendTable"></div>
       <p class="hint" id="trendOthers"></p>
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 6px">במגמת עלייה בשנה האחרונה</h3>
+      <p class="hint">מגמה חזקה: עלייה של יותר מ־30% בשנה. ✓ ליד השם = הנכס נמצא גם ברשימה של חצי השנה.</p>
+      <div id="trendTable2"></div>
+      <p class="hint" id="trendOthers2"></p>
     </div>
   </section>
 
@@ -1146,27 +1156,35 @@ $('loadAllFull').onclick=async()=>{
 
 
 /* ---------- six-month uptrend view ---------- */
-function trendFor(sym){
+function trendFor(sym,days){
+  days=days||182;
   const q=S.quotes[sym]; let v=((S.hist[sym]&&S.hist[sym].values)||[]).map(x=>[x[0],x[1]]);
   if(q&&q.price){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
   if(v.length<40) return null;
-  const last=v[v.length-1], from6=addDays(last[0],-182), from1=addDays(last[0],-30);
+  const last=v[v.length-1], from6=addDays(last[0],-days), from1=addDays(last[0],-30), from182=addDays(last[0],-182);
   const w=v.filter(x=>x[0]>=from6); if(w.length<20 || v[0][0]>from6) return null;
-  const p6=w[0][1], p1=(v.find(x=>x[0]>=from1)||w[0])[1];
+  const p6=w[0][1], p1=(v.find(x=>x[0]>=from1)||w[0])[1], ph=(v.find(x=>x[0]>=from182)||w[0])[1];
   const avg=w.reduce((a,x)=>a+x[1],0)/w.length;
-  const ch6=last[1]/p6-1, ch1=last[1]/p1-1;
-  return {ch6, ch1, avg, above:last[1]>avg, up:ch6>0&&last[1]>avg, strong:ch6>0.2, price:last[1]};
+  const ch6=last[1]/p6-1, ch1=last[1]/p1-1, chH=last[1]/ph-1;
+  return {ch6, ch1, chH, avg, above:last[1]>avg, up:ch6>0&&last[1]>avg, strong:ch6>(days>200?0.3:0.2), price:last[1]};
 }
 function renderTrend(){
+  // two lists: the last half year (182 days) and the last year (365 days), same two conditions
+  const half=renderTrendList(182,'trendTable','trendOthers','חצי שנה',null);
+  renderTrendList(365,'trendTable2','trendOthers2','שנה',half);
+}
+function renderTrendList(days,tId,oId,lbl,inHalf){
   const rows=[], others=[], wait=[];
   const young=[];
-  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym); const h=S.hist[s.sym]&&S.hist[s.sym].values||[]; if(!t){ if(h.length&&S.hist[s.sym].date) young.push(s.name); else wait.push(s.name); } else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
+  S.symbols.forEach((s,idx)=>{ const t=trendFor(s.sym,days); const h=S.hist[s.sym]&&S.hist[s.sym].values||[]; if(!t){ if(h.length&&S.hist[s.sym].date) young.push(s.name); else wait.push(s.name); } else if(t.up) rows.push([s,idx,t]); else others.push(s.name); });
   rows.sort((a,b)=>b[2].ch6-a[2].ch6);
-  if(!rows.length){ $('trendTable').innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
-  else $('trendTable').innerHTML=`<table class="ttable"><tr><th>נכס</th><th>חצי שנה</th><th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
-    return `<tr class="rw" data-sym="${esc(s.sym)}"><td>${L.i} ${esc(s.name)}<div class="tk">${esc(s.sym)}</div></td><td class="num up">${pct(t.ch6*100)}</td><td class="num ${t.ch1>=0?'up':'down'}">${pct(t.ch1*100)}</td><td><span class="str ${t.strong?'s':'m'}">${t.strong?'חזקה':'מתונה'}</span></td></tr>`; }).join('')}</table>`;
-  $('trendTable').querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>openDetail(tr.dataset.sym));
-  $('trendOthers').textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'. ':'')+(young.length?'נסחרים פחות מחצי שנה ולכן לא נבדקו: '+young.join(', ')+'.':'');
+  const yr=days>200;
+  if(!rows.length){ $(tId).innerHTML='<p class="hint">'+(wait.length===S.symbols.length?'ממתין לנתונים. ההיסטוריה נטענת בהדרגה, שמונה נכסים בדקה.':'כרגע אף נכס לא עומד בשני התנאים.')+'</p>'; }
+  else $(tId).innerHTML=`<table class="ttable"><tr><th>נכס</th><th>${lbl}</th>${yr?'<th>חצי שנה</th>':''}<th>חודש אחרון</th><th>עוצמה</th></tr>${rows.map(([s,idx,t])=>{ const L=look(s.sym,idx);
+    return `<tr class="rw" data-sym="${esc(s.sym)}"><td>${L.i} ${esc(s.name)}${inHalf&&inHalf.has(s.sym)?' <span class="up">✓</span>':''}<div class="tk">${esc(s.sym)}</div></td><td class="num up">${pct(t.ch6*100)}</td>${yr?`<td class="num ${t.chH>=0?'up':'down'}">${pct(t.chH*100)}</td>`:''}<td class="num ${t.ch1>=0?'up':'down'}">${pct(t.ch1*100)}</td><td><span class="str ${t.strong?'s':'m'}">${t.strong?'חזקה':'מתונה'}</span></td></tr>`; }).join('')}</table>`;
+  $(tId).querySelectorAll('tr.rw').forEach(tr=>tr.onclick=()=>openDetail(tr.dataset.sym));
+  $(oId).textContent=(rows.length?rows.length+' מתוך '+S.symbols.length+' נכסים במגמת עלייה. ':'')+(others.length?'לא במגמת עלייה כרגע: '+others.join(', ')+'. ':'')+(wait.length&&rows.length?'עדיין ממתינים לנתונים: '+wait.join(', ')+'. ':'')+(young.length?'נסחרים פחות מ'+lbl+' ולכן לא נבדקו: '+young.join(', ')+'.':'');
+  return new Set(rows.map(r=>r[0].sym));
 }
 
 /* ---------- Gann foundation 1: the half ---------- */
