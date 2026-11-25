@@ -136,6 +136,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
 .leg{font-size:12px;padding:4px 0;border-bottom:1px dashed #2a355066}
 .bar{height:8px;border-radius:4px;background:#ef444455;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:#22c55e}
 .lnk .r{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;border-bottom:1px solid #ffffff12;font-size:14px}.lnk .r b{text-align:left}
+.xr{font-size:12px;font-weight:700;margin-top:2px}
 .nitem{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#ffffff06}.nitem.big{border-color:#f59e0b}.nitem h4{margin:2px 0 4px;font-size:17px;line-height:1.4}.nitem .nd{font-size:12.5px;color:var(--mut,#8b96ad)}.nitem p{margin:8px 0;line-height:1.6;font-size:15px}.nitem .lab{font-weight:700;margin-top:10px;font-size:15px}.nitem ul{margin:4px 0;padding-right:18px}.nitem li{margin:3px 0;line-height:1.55;font-size:14.5px}.nitem .src a{color:#93c5fd;font-size:12.5px;word-break:break-all}
 .hrow{border-right:4px solid var(--line);padding:6px 10px 8px;margin:10px 0;background:#ffffff05;border-radius:8px}.hrow.hup{border-right-color:#22c55e}.hrow.hdown{border-right-color:#ef4444}.hrow .hd{font-size:12.5px;color:var(--mut,#8b96ad)}.hrow b.t{display:block;font-size:15.5px;margin:2px 0}.hrow div{font-size:14px;line-height:1.55;margin:2px 0}.hrow .src a{color:#93c5fd;font-size:12px}
 .hsep{font-weight:700;margin:14px 0 4px;color:var(--mut,#8b96ad);font-size:14px}
@@ -255,7 +256,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="mood" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">🌡️ השוק עצבני או רגוע?</h2><button id="moodBack">→ חזרה</button></div>
-      <p class="hint">המדד מחושב מהמחירים שהאפליקציה כבר מורידה, ומתעדכן בכל רענון. הוא מסתמך בעיקר על קרן האס אנד פי 500 (SPY). מדד הפחד (VIX) מתעדכן פעם ביום בלילה, יחד עם החדשות. זה מדד של לחץ ותנודות, לא תחזית ולא המלצה.</p>
+      <p class="hint">יש כאן שני מדדים: השוק הכללי (לפי האס אנד פי 500), והשבבים והבינה המלאכותית (לפי הנכסים שלך בתחום). כך רואים גם יום שבו השוק הכללי רגוע אבל השבבים בפאניקה. המדדים מחושבים מהמחירים שהאפליקציה כבר מורידה, ומתעדכנים בכל רענון. מדד הפחד (VIX) מתעדכן פעם ביום בלילה, יחד עם החדשות. זה מדד של לחץ ותנודות, לא תחזית ולא המלצה.</p>
       <div id="moodBox"></div>
     </div>
     <div class="panel" id="moodParts"></div>
@@ -712,6 +713,9 @@ function hoursHTML(sym){
 }
 
 /* ---------- home grid ---------- */
+// "x times its normal move" – shown only when today's move is clearly bigger than this asset's usual daily move
+function xrHTML(sym){ const r=moveRatio(sym); if(r==null||r<1.5) return ''; const c=r>=3?'#ef4444':r>=2?'#f59e0b':'#60a5fa';
+  return `<div class="xr" style="color:${c}">⚡ פי ${r.toFixed(1)} מהתנועה הרגילה שלה (${typicalMove(sym).toFixed(1)}% ביום)</div>`; }
 function renderGrid(){
   updateMoodBtn();
   scheduleAlert();
@@ -728,6 +732,7 @@ function renderGrid(){
       <div class="desc">${descOf(s.sym)}</div>
       <div class="px ${flash(s.sym,q.price)}">${fmt(q.price)}</div>
       <div class="chg ${cls}">${q.price!=null?(q.change>=0?'+':'')+fmt(q.change)+'  ('+pct(q.pct)+')':'ממתין לנתונים'}</div>
+      ${xrHTML(s.sym)}
       <canvas></canvas>
       ${hoursHTML(s.sym)}
       <div class="meta"><span>${q.t?new Date(q.t).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):''}</span>${n?`<span class="badge">${n}</span>`:''}</div>`;
@@ -2210,12 +2215,15 @@ $('newsMore').onclick=()=>{ newsThen='news'; history.back(); };
 function unusualMoves(){
   // what the app itself sees today: big moves of the whole market or of single assets
   const idx=new Set(['SPY','QQQ','DIA','EIS']), out=[];
-  S.symbols.forEach((s,i)=>{ const q=S.quotes[s.sym]; if(!q||q.pct==null) return; const lim=idx.has(s.sym)?2:s.sym==='BTC/USD'||s.sym==='MSTR'?8:6; if(Math.abs(q.pct)>=lim) out.push({s,i,q}); });
-  return out.sort((a,b)=>Math.abs(b.q.pct)-Math.abs(a.q.pct));
+  // indexes: a fixed 2%. Single assets: at least 2.5 times their own normal daily move (and at least 3%), so a jumpy stock isn't flagged for an ordinary day
+  S.symbols.forEach((s,i)=>{ const q=S.quotes[s.sym]; if(!q||q.pct==null) return; const r=moveRatio(s.sym);
+    const hit=idx.has(s.sym)?Math.abs(q.pct)>=2:(r!=null?(r>=2.5&&Math.abs(q.pct)>=3):Math.abs(q.pct)>=(s.sym==='BTC/USD'||s.sym==='MSTR'?8:6));
+    if(hit) out.push({s,i,q,r}); });
+  return out.sort((a,b)=>(b.r||Math.abs(b.q.pct)/2)-(a.r||Math.abs(a.q.pct)/2));
 }
 function renderNews(){
   const mv=unusualMoves();
-  $('newsMoves').innerHTML=`<h4>⚡ תנועות חריגות שהאפליקציה רואה עכשיו</h4>`+(mv.length?mv.map(({s,i,q})=>{ const L=look(s.sym,i); return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> <b dir="ltr" class="${q.pct>=0?'up':'down'}">${pct(q.pct)}</b> · עכשיו <b dir="ltr">${fmt(q.price)}</b></div>`; }).join(''):'<p class="hint">אין כרגע תנועות חריגות במחירים.</p>');
+  $('newsMoves').innerHTML=`<h4>⚡ תנועות חריגות שהאפליקציה רואה עכשיו</h4>`+(mv.length?mv.map(({s,i,q,r})=>{ const L=look(s.sym,i); return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> <b dir="ltr" class="${q.pct>=0?'up':'down'}">${pct(q.pct)}</b> · עכשיו <b dir="ltr">${fmt(q.price)}</b>${r?` · <span style="color:${r>=3?'#ef4444':'#f59e0b'}">פי ${r.toFixed(1)} מהרגיל</span>`:''}</div>`; }).join(''):'<p class="hint">אין כרגע תנועות חריגות במחירים.</p>');
   $('newsMoves').querySelectorAll('[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
   renderHistory();
   const items=((NEWS&&NEWS.items)||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -2240,51 +2248,88 @@ function renderHistory(){
     ${recent.length?`<div class="hsep">לאחרונה</div>${recent.map(row).join('')}`:''}
     ${rec.length?`<div class="hsep">השיאים של השנים האחרונות</div>${rec.map(row).join('')}`:''}</div>`;
 }
-/* ---------- market mood: calm or nervous, from the app's own prices (+ VIX once a day from news.json) ---------- */
+/* ---------- market mood: calm or nervous. Two meters: the general market (S&P 500) and the owner's chips / AI names ---------- */
 const MOOD_LV=[{n:'רגוע',i:'😌',c:'#22c55e'},{n:'רגיל',i:'🙂',c:'#60a5fa'},{n:'עצבני',i:'😬',c:'#f59e0b'},{n:'פאניקה',i:'😱',c:'#ef4444'}];
+const CHIP_GROUPS=new Set(['מתכנני שבבים','ייצור שבבים וזיכרון','מכונות לייצור שבבים','קירור וחשמל בחוות שרתים','רשת ותקשורת']);
+const CHIP_EXTRA=new Set(['NVDA','ANT']);
+function chipSyms(){ return S.symbols.map(x=>x.sym).filter(s=>CHIP_EXTRA.has(s)||CHIP_GROUPS.has(grpOf(s))); }
 function closesFor(sym){
   const q=S.quotes[sym]; let v=((S.hist[sym]&&S.hist[sym].values)||[]).map(x=>[x[0],x[1]]);
   if(q&&q.price){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
   return v;
 }
-function moodCalc(){
+// the asset's normal daily move: average size of the daily move (up or down) over the last 60 trading days, before today
+function typicalMove(sym){
+  const qd=(S.quotes[sym]&&S.quotes[sym].d)||today();
+  const v=((S.hist[sym]&&S.hist[sym].values)||[]).filter(x=>x[0]<qd).slice(-61);
+  if(v.length<21) return null;
+  let a=0; for(let i=1;i<v.length;i++) a+=Math.abs(v[i][1]/v[i-1][1]-1);
+  return a/(v.length-1)*100;
+}
+function moveRatio(sym){ const q=S.quotes[sym]; const t=typicalMove(sym); if(!q||q.pct==null||!t) return null; return Math.abs(q.pct)/t; }
+const mLv=(x,a)=>x<a[0]?0:x<a[1]?1:x<a[2]?2:3;
+const sd=a=>{ const m=a.reduce((s,x)=>s+x,0)/a.length; return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1)); };
+function moodScore(parts){ const W=parts.reduce((a,x)=>a+x.w,0), sc=parts.reduce((a,x)=>a+x.l*x.w,0)/W; return {score:Math.round(sc/3*100), L:sc<0.75?0:sc<1.5?1:sc<2.25?2:3}; }
+function moodGeneral(){
   const sym=S.symbols.find(x=>x.sym==='SPY')?'SPY':S.symbols.find(x=>x.sym==='QQQ')?'QQQ':(S.hist.SPY?'SPY':null);
   if(!sym) return null;
   const v=closesFor(sym); if(v.length<30) return null;
   const r=[]; for(let i=1;i<v.length;i++) r.push(v[i][1]/v[i-1][1]-1);
-  const r20=r.slice(-20), m=r20.reduce((a,x)=>a+x,0)/r20.length;
-  const vol=Math.sqrt(r20.reduce((a,x)=>a+(x-m)**2,0)/(r20.length-1))*Math.sqrt(252)*100;
-  const big=r20.filter(x=>Math.abs(x)>=0.01).length;
+  const r20=r.slice(-20), vol=sd(r20)*Math.sqrt(252)*100, big=r20.filter(x=>Math.abs(x)>=0.01).length;
   const q=S.quotes[sym]; const td=q&&q.pct!=null?q.pct:r[r.length-1]*100;
   const y=v.filter(x=>x[0]>=addDays(v[v.length-1][0],-365)); const hi=Math.max(...y.map(x=>x[1])); const dd=(1-v[v.length-1][1]/hi)*100;
-  const lv=(x,a)=>x<a[0]?0:x<a[1]?1:x<a[2]?2:3;
+  const nm=sym==='SPY'?'האס אנד פי 500':'הנאסדק';
   const parts=[
-    {k:'today',w:1,l:lv(Math.abs(td),[0.5,1.2,2.5]),t:'התנועה היום',val:pct(td),d:'כמה '+(sym==='SPY'?'האס אנד פי 500':'הנאסדק')+' זז היום. פחות מחצי אחוז – יום שקט. יותר מ־2.5% – יום סוער.'},
-    {k:'vol',w:1.5,l:lv(vol,[12,20,30]),t:'עוצמת התנודות בחודש האחרון',val:vol.toFixed(1)+'%',d:'כמה המחיר קופץ מיום ליום ב־20 ימי המסחר האחרונים, בחישוב שנתי. בזמנים רגילים זה בערך 12%–20%. מעל 30% – לחץ גדול.'},
-    {k:'big',w:1,l:lv(big,[3,7,12]),t:'ימים עם תנועה של 1% ומעלה',val:big+' מתוך 20',d:'בתקופה רגועה יש רק מעט ימים כאלה. כשרוב הימים זזים יותר מ־1%, המשקיעים לחוצים.'},
-    {k:'dd',w:0.5,l:lv(dd,[3,10,20]),t:'מרחק מהשיא של השנה',val:dd<0.05?'בשיא':'-'+dd.toFixed(1)+'%',d:'כמה המחיר נמוך מהשיא של השנה האחרונה. ירידה של יותר מ־10% נקראת "תיקון", ויותר מ־20% – "שוק דובי".'}
+    {k:'today',w:1,l:mLv(Math.abs(td),[0.5,1.2,2.5]),t:'התנועה היום',val:pct(td),d:'כמה '+nm+' זז היום. פחות מחצי אחוז – יום שקט. יותר מ־2.5% – יום סוער.'},
+    {k:'vol',w:1.5,l:mLv(vol,[12,20,30]),t:'עוצמת התנודות בחודש האחרון',val:vol.toFixed(1)+'%',d:'כמה המחיר קופץ מיום ליום ב־20 ימי המסחר האחרונים, בחישוב שנתי. בזמנים רגילים זה בערך 12%–20%. מעל 30% – לחץ גדול.'},
+    {k:'big',w:1,l:mLv(big,[3,7,12]),t:'ימים עם תנועה של 1% ומעלה',val:big+' מתוך 20',d:'בתקופה רגועה יש רק מעט ימים כאלה. כשרוב הימים זזים יותר מ־1%, המשקיעים לחוצים.'},
+    {k:'dd',w:0.5,l:mLv(dd,[3,10,20]),t:'מרחק מהשיא של השנה',val:dd<0.05?'בשיא':'-'+dd.toFixed(1)+'%',d:'כמה המחיר נמוך מהשיא של השנה האחרונה. ירידה של יותר מ־10% נקראת "תיקון", ויותר מ־20% – "שוק דובי".'}
   ];
   const M=NEWS&&NEWS.mood;
-  if(M&&M.vix&&M.date&&M.date>=addDays(today(),-5)) parts.push({k:'vix',w:1.5,l:lv(M.vix,[15,20,30]),t:'מדד הפחד (VIX)',val:String(M.vix),d:'מדד שמראה כמה המשקיעים משלמים על "ביטוח" נגד ירידות. מתחת ל־15 – רגוע. מעל 30 – פחד. השיא: 82.69 במרץ 2020. נכון ל־'+fmtDay(M.date)+'.'+(M.note?' '+M.note:'')});
-  const W=parts.reduce((a,x)=>a+x.w,0), sc=parts.reduce((a,x)=>a+x.l*x.w,0)/W;
-  const L=sc<0.75?0:sc<1.5?1:sc<2.25?2:3;
-  return {sym,parts,score:Math.round(sc/3*100),L};
+  if(M&&M.vix&&M.date&&M.date>=addDays(today(),-5)) parts.push({k:'vix',w:1.5,l:mLv(M.vix,[15,20,30]),t:'מדד הפחד (VIX)',val:String(M.vix),d:'מדד שמראה כמה המשקיעים משלמים על "ביטוח" נגד ירידות. מתחת ל־15 – רגוע. מעל 30 – פחד. השיא: 82.69 במרץ 2020. נכון ל־'+fmtDay(M.date)+'.'+(M.note?' '+M.note:'')});
+  return Object.assign({parts},moodScore(parts));
+}
+function moodChips(){
+  // an equal-weight basket of the owner's chip / AI names, measured against its OWN normal (chips always move more than the S&P)
+  const syms=chipSyms().filter(x=>closesFor(x).length>=60); if(syms.length<3) return null;
+  const acc={};
+  syms.forEach(x=>{ const v=closesFor(x); for(let i=1;i<v.length;i++){ const d=v[i][0]; (acc[d]=acc[d]||[]).push(v[i][1]/v[i-1][1]-1); } });
+  const days=Object.keys(acc).sort().filter(d=>acc[d].length>=Math.max(2,syms.length/2)).slice(-260);
+  if(days.length<60) return null;
+  const r=days.map(d=>acc[d].reduce((a,x)=>a+x,0)/acc[d].length);
+  const past=r.slice(0,-1), t=past.reduce((a,x)=>a+Math.abs(x),0)/past.length*100;
+  const qs=syms.map(x=>S.quotes[x]).filter(q=>q&&q.pct!=null&&(q.d||today())===days[days.length-1]);
+  const td=qs.length?qs.reduce((a,q)=>a+q.pct,0)/qs.length:r[r.length-1]*100;
+  const down=qs.filter(q=>q.pct<0).length;
+  const ratio=Math.abs(td)/t, vr=sd(r.slice(-20))/sd(past);
+  const big=r.slice(-20).filter(x=>Math.abs(x)*100>1.5*t).length;
+  let ix=1,hi=1; r.forEach(x=>{ ix*=1+x; if(ix>hi) hi=ix; }); const dd=(1-ix/hi)*100;
+  const parts=[
+    {k:'today',w:1,l:mLv(ratio,[0.6,1.5,3]),t:'התנועה היום (ממוצע)',val:pct(td),d:'הממוצע של '+syms.length+' הנכסים שלך בתחום. בדרך כלל הם זזים בממוצע '+t.toFixed(1)+'% ביום, כלומר היום זה פי '+ratio.toFixed(1)+' מהרגיל.'+(qs.length?' '+down+' מתוך '+qs.length+' בירידה היום.':'')},
+    {k:'vol',w:1.5,l:mLv(vr,[0.8,1.2,1.7]),t:'עוצמת התנודות בחודש האחרון',val:'פי '+vr.toFixed(1),d:'כמה התנודות בחודש האחרון גדולות ביחס לרגיל של השנה. פי 1 – כרגיל. מעל פי 1.7 – לחץ גדול.'},
+    {k:'big',w:1,l:mLv(big,[3,6,10]),t:'ימים עם תנועה חריגה',val:big+' מתוך 20',d:'ימים שבהם התחום זז יותר מפי 1.5 מהתנועה הרגילה שלו ('+(1.5*t).toFixed(1)+'%).'},
+    {k:'dd',w:0.5,l:mLv(dd,[5,15,30]),t:'מרחק מהשיא של השנה',val:dd<0.05?'בשיא':'-'+dd.toFixed(1)+'%',d:'כמה הסל של התחום (משקל שווה לכל נכס) נמוך מהשיא שלו בשנה האחרונה.'}
+  ];
+  return Object.assign({parts,syms},moodScore(parts));
 }
 function updateMoodBtn(){
-  const m=moodCalc(); if(!$('moodLbl')) return;
-  if(!m){ $('moodLbl').textContent='מצב השוק'; $('moodBtn').style.borderColor=''; return; }
-  const lv=MOOD_LV[m.L]; $('moodLbl').textContent=lv.i+' '+lv.n; $('moodBtn').style.borderColor=lv.c;
-  if(!$('mood').classList.contains('hidden')) renderMood(m);
+  if(!$('moodLbl')) return;
+  const g=moodGeneral(), c=moodChips();
+  if(!g&&!c){ $('moodLbl').textContent='מצב השוק'; $('moodBtn').style.borderColor=''; return; }
+  $('moodLbl').textContent=[g?MOOD_LV[g.L].i+' שוק':'',c?MOOD_LV[c.L].i+' שבבים':''].filter(Boolean).join(' · ');
+  $('moodBtn').style.borderColor=MOOD_LV[Math.max(g?g.L:0,c?c.L:0)].c;
+  if(!$('mood').classList.contains('hidden')) renderMood(g,c);
 }
-function renderMood(m){
-  m=m||moodCalc();
-  if(!m){ $('moodBox').innerHTML='<p class="hint">ממתין לנתונים של האס אנד פי 500 (SPY) או הנאסדק (QQQ). ההיסטוריה נטענת בהדרגה.</p>'; $('moodParts').innerHTML=''; return; }
-  const lv=MOOD_LV[m.L];
-  $('moodBox').innerHTML=`<div style="text-align:center;padding:8px 0"><div style="font-size:54px;line-height:1">${lv.i}</div><div style="font-size:26px;font-weight:800;color:${lv.c};margin-top:6px">${lv.n}</div>
-    <div style="position:relative;height:14px;border-radius:7px;margin:14px 4px 4px;background:linear-gradient(to left,#22c55e,#60a5fa,#f59e0b,#ef4444)"><div style="position:absolute;top:-5px;right:calc(${m.score}% - 6px);width:12px;height:24px;border-radius:4px;background:#fff;box-shadow:0 0 0 2px #0008"></div></div>
-    <div class="row" style="justify-content:space-between;font-size:12px;color:var(--mut)"><span>רגוע</span><span>פאניקה</span></div></div>`;
-  $('moodParts').innerHTML=`<h3 style="margin:0 0 6px">ממה זה מורכב</h3>`+m.parts.map(p=>{ const l=MOOD_LV[p.l]; return `<div class="hrow" style="border-right-color:${l.c}"><b class="t">${l.i} ${esc(p.t)}: <span ${/^[-+0-9.%]+$/.test(p.val)?'dir="ltr"':''} style="color:${l.c}">${esc(p.val)}</span></b><div>${esc(p.d)}</div></div>`; }).join('')
-    +(m.parts.some(p=>p.k==='vix')?'':'<p class="hint">מדד הפחד (VIX) עוד לא עודכן. הוא יתווסף בעדכון החדשות של הלילה.</p>');
+function renderMood(g,c){
+  if(arguments.length===0){ g=moodGeneral(); c=moodChips(); }
+  const gauge=(m,title)=>{ if(!m) return `<div style="flex:1;min-width:150px;text-align:center"><b>${title}</b><p class="hint">ממתין לנתונים…</p></div>`; const lv=MOOD_LV[m.L];
+    return `<div style="flex:1;min-width:150px;text-align:center;padding:6px 0"><b>${title}</b><div style="font-size:44px;line-height:1;margin-top:6px">${lv.i}</div><div style="font-size:22px;font-weight:800;color:${lv.c};margin-top:4px">${lv.n}</div>
+    <div style="position:relative;height:12px;border-radius:6px;margin:12px 4px 4px;background:linear-gradient(to left,#22c55e,#60a5fa,#f59e0b,#ef4444)"><div style="position:absolute;top:-5px;right:calc(${m.score}% - 5px);width:10px;height:22px;border-radius:4px;background:#fff;box-shadow:0 0 0 2px #0008"></div></div>
+    <div class="row" style="justify-content:space-between;font-size:11px;color:var(--mut)"><span>רגוע</span><span>פאניקה</span></div></div>`; };
+  $('moodBox').innerHTML=`<div class="row" style="gap:14px;align-items:flex-start">${gauge(g,'🏛️ השוק הכללי')}${gauge(c,'🧠 שבבים ובינה מלאכותית')}</div>`;
+  const rows=m=>m.parts.map(p=>{ const l=MOOD_LV[p.l]; return `<div class="hrow" style="border-right-color:${l.c}"><b class="t">${l.i} ${esc(p.t)}: <span ${/^[-+0-9.%]+$/.test(p.val)?'dir="ltr"':''} style="color:${l.c}">${esc(p.val)}</span></b><div>${esc(p.d)}</div></div>`; }).join('');
+  $('moodParts').innerHTML=(g?`<h3 style="margin:0 0 6px">🏛️ השוק הכללי – ממה זה מורכב</h3><p class="hint">לפי האס אנד פי 500 (SPY): 500 החברות הגדולות בארצות הברית.</p>${rows(g)}${g.parts.some(p=>p.k==='vix')?'':'<p class="hint">מדד הפחד (VIX) עוד לא עודכן. הוא יתווסף בעדכון החדשות של הלילה.</p>'}`:'')
+    +(c?`<h3 style="margin:16px 0 6px">🧠 שבבים ובינה מלאכותית – ממה זה מורכב</h3><p class="hint">לפי ${c.syms.length} הנכסים שלך בתחום (${esc(c.syms.join(', '))}). הם תמיד זזים יותר מהשוק הכללי, ולכן כאן משווים אותם לרגיל שלהם עצמם, ולא לאחוזים קבועים.</p>${rows(c)}`:'');
 }
 /* ---------- loop ---------- */
 let timer=null;
