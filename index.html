@@ -174,6 +174,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <button id="alertBtn">⏰ נקודות גאן <span class="cnt hidden" id="alertCnt"></span></button>
     <button id="gannBtn">📐 גאן</button>
     <button id="dowBtn">📊 דאו</button>
+    <button id="moodBtn">🌡️ <span id="moodLbl">מצב השוק</span></button>
     <button id="newsBtn">📰 חדשות <span class="cnt hidden" id="newsCnt"></span></button>
     <button id="diaBtn">💎 היהלום <span class="cnt hidden" id="diaCnt"></span></button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
@@ -250,6 +251,18 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <div class="panel" id="diaNow"></div>
     <div class="panel" id="diaNear"></div>
     <div class="panel" id="diaHist"></div>
+  </section>
+  <section id="mood" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">🌡️ השוק עצבני או רגוע?</h2><button id="moodBack">→ חזרה</button></div>
+      <p class="hint">המדד מחושב מהמחירים שהאפליקציה כבר מורידה, ומתעדכן בכל רענון. הוא מסתמך בעיקר על קרן האס אנד פי 500 (SPY). מדד הפחד (VIX) מתעדכן פעם ביום בלילה, יחד עם החדשות. זה מדד של לחץ ותנודות, לא תחזית ולא המלצה.</p>
+      <div id="moodBox"></div>
+    </div>
+    <div class="panel" id="moodParts"></div>
+    <div class="panel">
+      <h3 style="margin:0 0 6px">איך לקרוא את זה</h3>
+      <p style="line-height:1.6">😌 <b>רגוע</b> – תנועות קטנות, אין לחץ.<br>🙂 <b>רגיל</b> – קצת תנודות, כמו ברוב הזמן.<br>😬 <b>עצבני</b> – תנועות גדולות לשני הכיוונים. בתקופות כאלה קורים גם הימים הכי גרועים וגם הכי טובים.<br>😱 <b>פאניקה</b> – פחד חזק, כמו במרץ 2020 או באפריל 2025.</p>
+    </div>
   </section>
   <section id="news" class="hidden">
     <div class="panel">
@@ -700,6 +713,7 @@ function hoursHTML(sym){
 
 /* ---------- home grid ---------- */
 function renderGrid(){
+  updateMoodBtn();
   scheduleAlert();
   const g=$('grid'); g.innerHTML='';
   const groups={}; S.symbols.forEach((s,idx)=>{ (groups[grpOf(s.sym)]=groups[grpOf(s.sym)]||[]).push([s,idx]); });
@@ -1949,8 +1963,8 @@ $('askCancel').onclick=()=>history.back();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann','dow','diamond','news','alerts'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), news:()=>renderNews(), alerts:()=>renderAlertsView()};
+const VIEWS=['trend','risk','gann','dow','diamond','news','alerts','mood'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), news:()=>renderNews(), alerts:()=>renderAlertsView(), mood:()=>renderMood()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
@@ -1983,8 +1997,9 @@ $('gannBtn').onclick=()=>openView('gann');
 $('dowBtn').onclick=()=>openView('dow');
 $('diaBtn').onclick=()=>openView('diamond');
 $('newsBtn').onclick=()=>openView('news');
+$('moodBtn').onclick=()=>openView('mood');
 $('alertBtn').onclick=()=>openView('alerts');
-['riskBack','trendBack','gannBack','dowBack','diaBack','newsBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
+['moodBack','riskBack','trendBack','gannBack','dowBack','diaBack','newsBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
@@ -2156,7 +2171,7 @@ function seenNews(){ try{ return JSON.parse(localStorage.getItem('st_news_seen')
 function markSeen(ids){ try{ const s=new Set(seenNews()); ids.forEach(i=>s.add(i)); localStorage.setItem('st_news_seen',JSON.stringify([...s].slice(-200))); }catch(e){} }
 async function loadNews(){
   try{ const r=await fetch('news.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) return; NEWS=await r.json(); }catch(e){ return; }
-  updateNewsBtn();
+  updateNewsBtn(); updateMoodBtn();
   const seen=new Set(seenNews()), fresh=(NEWS.items||[]).filter(x=>x.level==='big'&&!seen.has(x.id));
   if(fresh.length&&$('settings').classList.contains('hidden')&&$('setup').classList.contains('hidden')) openNewsModal(fresh);
   if(!$('news').classList.contains('hidden')) renderNews();
@@ -2220,8 +2235,55 @@ function renderHistory(){
   $('newsHist').innerHTML=`<div class="panel"><h3 style="margin:0 0 6px">📜 היסטוריה שהשפיעה</h3>
     <p class="hint">תקציר של ימים עם עליות או נפילות חדות – ומה קרה אחריהם. הימים האלה נשמרים, וכל עדכון חדשות חדש משווה אליהם.</p>
     ${NEWS.historyNote?`<p class="hint">📏 ${esc(NEWS.historyNote)}</p>`:''}${NEWS.historyLesson?`<p style="line-height:1.6">💡 ${esc(NEWS.historyLesson)}</p>`:''}
+    ${(NEWS.insights||[]).length?`<div class="hsep">💡 תובנות מההיסטוריה ומהלחץ של אנשים</div>${NEWS.insights.map(x=>`<div class="hrow" style="border-right-color:#a78bfa"><b class="t">${esc(x.t)}</b><div>${nums(x.d)}</div>${(x.src||[]).length?`<div class="src">${x.src.map(c=>`<a href="${esc(c.u)}" target="_blank" rel="noopener">${esc(c.t)}</a>`).join(' · ')}</div>`:''}</div>`).join('')}`:''}
     ${recent.length?`<div class="hsep">לאחרונה</div>${recent.map(row).join('')}`:''}
     ${rec.length?`<div class="hsep">השיאים של השנים האחרונות</div>${rec.map(row).join('')}`:''}</div>`;
+}
+/* ---------- market mood: calm or nervous, from the app's own prices (+ VIX once a day from news.json) ---------- */
+const MOOD_LV=[{n:'רגוע',i:'😌',c:'#22c55e'},{n:'רגיל',i:'🙂',c:'#60a5fa'},{n:'עצבני',i:'😬',c:'#f59e0b'},{n:'פאניקה',i:'😱',c:'#ef4444'}];
+function closesFor(sym){
+  const q=S.quotes[sym]; let v=((S.hist[sym]&&S.hist[sym].values)||[]).map(x=>[x[0],x[1]]);
+  if(q&&q.price){ const qd=q.d||today(); if(v.length&&v[v.length-1][0]===qd) v[v.length-1]=[qd,q.price]; else if(!v.length||v[v.length-1][0]<qd) v.push([qd,q.price]); }
+  return v;
+}
+function moodCalc(){
+  const sym=S.symbols.find(x=>x.sym==='SPY')?'SPY':S.symbols.find(x=>x.sym==='QQQ')?'QQQ':(S.hist.SPY?'SPY':null);
+  if(!sym) return null;
+  const v=closesFor(sym); if(v.length<30) return null;
+  const r=[]; for(let i=1;i<v.length;i++) r.push(v[i][1]/v[i-1][1]-1);
+  const r20=r.slice(-20), m=r20.reduce((a,x)=>a+x,0)/r20.length;
+  const vol=Math.sqrt(r20.reduce((a,x)=>a+(x-m)**2,0)/(r20.length-1))*Math.sqrt(252)*100;
+  const big=r20.filter(x=>Math.abs(x)>=0.01).length;
+  const q=S.quotes[sym]; const td=q&&q.pct!=null?q.pct:r[r.length-1]*100;
+  const y=v.filter(x=>x[0]>=addDays(v[v.length-1][0],-365)); const hi=Math.max(...y.map(x=>x[1])); const dd=(1-v[v.length-1][1]/hi)*100;
+  const lv=(x,a)=>x<a[0]?0:x<a[1]?1:x<a[2]?2:3;
+  const parts=[
+    {k:'today',w:1,l:lv(Math.abs(td),[0.5,1.2,2.5]),t:'התנועה היום',val:pct(td),d:'כמה '+(sym==='SPY'?'האס אנד פי 500':'הנאסדק')+' זז היום. פחות מחצי אחוז – יום שקט. יותר מ־2.5% – יום סוער.'},
+    {k:'vol',w:1.5,l:lv(vol,[12,20,30]),t:'עוצמת התנודות בחודש האחרון',val:vol.toFixed(1)+'%',d:'כמה המחיר קופץ מיום ליום ב־20 ימי המסחר האחרונים, בחישוב שנתי. בזמנים רגילים זה בערך 12%–20%. מעל 30% – לחץ גדול.'},
+    {k:'big',w:1,l:lv(big,[3,7,12]),t:'ימים עם תנועה של 1% ומעלה',val:big+' מתוך 20',d:'בתקופה רגועה יש רק מעט ימים כאלה. כשרוב הימים זזים יותר מ־1%, המשקיעים לחוצים.'},
+    {k:'dd',w:0.5,l:lv(dd,[3,10,20]),t:'מרחק מהשיא של השנה',val:dd<0.05?'בשיא':'-'+dd.toFixed(1)+'%',d:'כמה המחיר נמוך מהשיא של השנה האחרונה. ירידה של יותר מ־10% נקראת "תיקון", ויותר מ־20% – "שוק דובי".'}
+  ];
+  const M=NEWS&&NEWS.mood;
+  if(M&&M.vix&&M.date&&M.date>=addDays(today(),-5)) parts.push({k:'vix',w:1.5,l:lv(M.vix,[15,20,30]),t:'מדד הפחד (VIX)',val:String(M.vix),d:'מדד שמראה כמה המשקיעים משלמים על "ביטוח" נגד ירידות. מתחת ל־15 – רגוע. מעל 30 – פחד. השיא: 82.69 במרץ 2020. נכון ל־'+fmtDay(M.date)+'.'+(M.note?' '+M.note:'')});
+  const W=parts.reduce((a,x)=>a+x.w,0), sc=parts.reduce((a,x)=>a+x.l*x.w,0)/W;
+  const L=sc<0.75?0:sc<1.5?1:sc<2.25?2:3;
+  return {sym,parts,score:Math.round(sc/3*100),L};
+}
+function updateMoodBtn(){
+  const m=moodCalc(); if(!$('moodLbl')) return;
+  if(!m){ $('moodLbl').textContent='מצב השוק'; $('moodBtn').style.borderColor=''; return; }
+  const lv=MOOD_LV[m.L]; $('moodLbl').textContent=lv.i+' '+lv.n; $('moodBtn').style.borderColor=lv.c;
+  if(!$('mood').classList.contains('hidden')) renderMood(m);
+}
+function renderMood(m){
+  m=m||moodCalc();
+  if(!m){ $('moodBox').innerHTML='<p class="hint">ממתין לנתונים של האס אנד פי 500 (SPY) או הנאסדק (QQQ). ההיסטוריה נטענת בהדרגה.</p>'; $('moodParts').innerHTML=''; return; }
+  const lv=MOOD_LV[m.L];
+  $('moodBox').innerHTML=`<div style="text-align:center;padding:8px 0"><div style="font-size:54px;line-height:1">${lv.i}</div><div style="font-size:26px;font-weight:800;color:${lv.c};margin-top:6px">${lv.n}</div>
+    <div style="position:relative;height:14px;border-radius:7px;margin:14px 4px 4px;background:linear-gradient(to left,#22c55e,#60a5fa,#f59e0b,#ef4444)"><div style="position:absolute;top:-5px;right:calc(${m.score}% - 6px);width:12px;height:24px;border-radius:4px;background:#fff;box-shadow:0 0 0 2px #0008"></div></div>
+    <div class="row" style="justify-content:space-between;font-size:12px;color:var(--mut)"><span>רגוע</span><span>פאניקה</span></div></div>`;
+  $('moodParts').innerHTML=`<h3 style="margin:0 0 6px">ממה זה מורכב</h3>`+m.parts.map(p=>{ const l=MOOD_LV[p.l]; return `<div class="hrow" style="border-right-color:${l.c}"><b class="t">${l.i} ${esc(p.t)}: <span ${/^[-+0-9.%]+$/.test(p.val)?'dir="ltr"':''} style="color:${l.c}">${esc(p.val)}</span></b><div>${esc(p.d)}</div></div>`; }).join('')
+    +(m.parts.some(p=>p.k==='vix')?'':'<p class="hint">מדד הפחד (VIX) עוד לא עודכן. הוא יתווסף בעדכון החדשות של הלילה.</p>');
 }
 /* ---------- loop ---------- */
 let timer=null;
