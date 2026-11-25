@@ -2188,6 +2188,7 @@ function newsItemHtml(x,open){
     <h4>${esc(x.title)}</h4>
     <p>${esc(x.what||'')}</p>
     ${open?`${(x.why||[]).length?`<div class="lab">למה זה קרה</div><ul>${x.why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${x.past?`<div class="lab">📜 מה קרה בעבר אחרי יום כזה</div><p style="border-right:3px solid #a78bfa;padding-right:8px">${esc(x.past)}</p>`:''}
     ${x.impact?`<div class="lab">איך זה יכול להשפיע</div><p>${esc(x.impact)}</p>`:''}
     ${mine.length?`<div class="lab">המניות שלך</div><ul>${mine.map(a=>`<li><b>${esc(nm(a.sym))}</b> – ${esc(a.note)}</li>`).join('')}</ul>`:''}
     ${x.unsure?`<p class="hint">❓ ${esc(x.unsure)}</p>`:''}
