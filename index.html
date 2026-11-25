@@ -455,13 +455,14 @@ const DEFAULT_SYMS = [
   {sym:'USO', name:'נפט'},
   {sym:'BTC/USD', name:'ביטקוין'},
   {sym:'QQQ', name:'נאסדק'},
+  {sym:'DIA', name:'דאו ג\'ונס'},
   {sym:'EIS', name:'בורסת תל אביב'},
   {sym:'ESLT', name:'אלביט'},
   {sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}
 ];
 const LOOK = {
   'SPY':{c:'#3b82f6',i:'🏛️'}, 'GOOGL':{c:'#22c55e',i:'🔎'}, 'MSFT':{c:'#06b6d4',i:'💻'}, 'NVDA':{c:'#84cc16',i:'🧠'},
-  'GLD':{c:'#eab308',i:'🥇'}, 'USO':{c:'#a16207',i:'🛢️'}, 'BTC/USD':{c:'#f97316',i:'₿'}, 'QQQ':{c:'#8b5cf6',i:'📊'},
+  'GLD':{c:'#eab308',i:'🥇'}, 'USO':{c:'#a16207',i:'🛢️'}, 'BTC/USD':{c:'#f97316',i:'₿'}, 'QQQ':{c:'#8b5cf6',i:'📊'}, 'DIA':{c:'#14b8a6',i:'🏦'},
   'EIS':{c:'#0ea5e9',i:'✡️'}, 'ESLT':{c:'#ec4899',i:'🛩️'}, 'MSTR':{c:'#ef4444',i:'🪙'}, 'ANT':{c:'#d97757',i:'✳️'}
 };
 const PAL=['#3b82f6','#22c55e','#06b6d4','#84cc16','#eab308','#f97316','#8b5cf6','#0ea5e9','#ec4899','#ef4444'];
@@ -475,6 +476,7 @@ const INFO={
  'USO':['התיק שלי','קרן שעוקבת אחרי מחיר הנפט'],
  'BTC/USD':['התיק שלי','המטבע הדיגיטלי הגדול בעולם'],
  'QQQ':['התיק שלי','קרן של מאה החברות הגדולות בנאסדק'],
+ 'DIA':['התיק שלי','קרן שזזה כמו מדד דאו ג\'ונס – 30 חברות אמריקאיות ענקיות'],
  'EIS':['התיק שלי','קרן של מניות ישראליות שנסחרת בניו יורק'],
  'ESLT':['התיק שלי','תעשייה ביטחונית ישראלית'],
  'MSTR':['התיק שלי','חברה שמחזיקה כמות עצומה של ביטקוין'],
@@ -523,6 +525,7 @@ function load(){
   if(!(d.interval>=5)) d.interval=15;
   if(!d.addedMSTR){ if(!d.symbols.find(x=>x.sym==='MSTR')) d.symbols=d.symbols.concat([{sym:'MSTR', name:'סטרטג\'י (מיקרוסטרטג\'י)'}]); d.addedMSTR=true; }
   if(!d.addedANT){ const have=new Set(d.symbols.map(x=>x.sym)); if(!have.has('NVDA')) d.symbols=d.symbols.concat([{sym:'NVDA', name:'אנבידיה'}]); if(!have.has('ANT')) d.symbols=d.symbols.concat([{sym:'ANT', name:'אנתרופיק'}]); d.addedANT=true; }
+  if(!d.addedDIA){ if(!d.symbols.find(x=>x.sym==='DIA')){ const i=d.symbols.findIndex(x=>x.sym==='QQQ'); d.symbols.splice(i<0?d.symbols.length:i+1,0,{sym:'DIA', name:'דאו ג\'ונס'}); } d.addedDIA=true; }
   d.hist = d.hist || {}; d.full = d.full || {}; d.intra = d.intra || {}; d.ticks = d.ticks || {}; d.quotes = d.quotes || {}; d.notes = d.notes || {};
   d.credits = d.credits || {day:'', used:0};
   return d;
