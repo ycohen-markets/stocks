@@ -415,5 +415,63 @@
    "t": "כשהבעיה לא נפתרה – העלייה שבירה",
    "d": "הואנג חזר לאנבידיה והמניה זינקה, אבל השאלה הגדולה – אם ההוצאות העצומות על בינה מלאכותית ישתלמו – נשארה פתוחה. לכן למחרת חלק מהעלייה נמחק. עלייה שנשענת על פתרון של הבעיה עצמה מחזיקה בדרך כלל יותר."
   }
+ ],
+ "gurus": [
+  {
+   "who": "וורן באפט",
+   "when": "אוקטובר 2008, באמצע המשבר הפיננסי",
+   "q": "תפחדו כשאחרים חמדנים, ותהיו חמדנים כשאחרים מפחדים.",
+   "d": "באפט כתב את זה בניו יורק טיימס ב־17/10/2008, וקנה מניות. באותו מאמר הוא גם כתב שבטווח הקרוב האבטלה תעלה והכותרות ימשיכו להפחיד. ואכן, השוק המשיך לרדת עוד כחמישה חודשים, עד מרץ 2009, ורק אז התחיל לעלות. כלומר: גם הוא לא תפס את התחתית.",
+   "src": [
+    {
+     "t": "Fortune – Be greedy when others are fearful (2008)",
+     "u": "https://fortune.com/2008/10/17/power-point-be-greedy-when-others-are-fearful/"
+    },
+    {
+     "t": "Reason – The Oracle of Omaha Says, Buy American",
+     "u": "https://reason.com/2008/10/17/the-oracle-of-omaha-says-buy-a/"
+    }
+   ]
+  },
+  {
+   "who": "פיטר לינץ'",
+   "when": "שנות ה־90, ראיון ל־PBS",
+   "q": "הרבה יותר כסף הפסידו משקיעים שהתכוננו לירידות, או ניסו לנחש אותן, מאשר בירידות עצמן.",
+   "d": "לינץ' ניהל את קרן מגלן של פידליטי. הוא גם אמר: מי שנמצא בשוק צריך לדעת שיהיו ירידות. ועוד: הוא לא זוכר אף אחד שחזה את השוק נכון יותר מפעם אחת.",
+   "src": [
+    {
+     "t": "A Wealth of Common Sense – Peter Lynch on Stock Market Losses",
+     "u": "https://awealthofcommonsense.com/2014/08/peter-lynch-stock-market-losses/"
+    }
+   ]
+  },
+  {
+   "who": "ג'ון טמפלטון",
+   "when": "1994",
+   "q": "שווקים עולים נולדים בפסימיות, גדלים בספקנות, מתבגרים באופטימיות, ומתים באופוריה.",
+   "d": "ההמשך שמיוחס לו: הזמן של הפסימיות הכי גדולה הוא הזמן הכי טוב לקנות, והזמן של האופטימיות הכי גדולה – הכי טוב למכור. הבעיה: את 'הכי גדולה' יודעים רק בדיעבד.",
+   "src": [
+    {
+     "t": "Barry Popik – Bull markets are born on pessimism…",
+     "u": "https://barrypopik.com/blog/bull_markets_are_born_on_pessimism_grow_on_skepticism_mature_on_optimism_an"
+    },
+    {
+     "t": "Livewire – Sir John Templeton's 16 rules",
+     "u": "https://livewiremarkets.com/wires/sir-john-templeton-s-16-rules-for-investment-success"
+    }
+   ]
+  },
+  {
+   "who": "הווארד מרקס",
+   "when": "מאי 2020, בזמן הקורונה",
+   "q": "העתיד לא ניתן לדעת.",
+   "d": "מרקס, מייסד קרן אוקטרי, כתב שאי אפשר לדעת אם השוק יעלה או ירד בחודש הבא. מה שכן אפשר: 'להשקיע בפחד' – כלומר לקחת רק סיכון שאפשר לעמוד בו.",
+   "src": [
+    {
+     "t": "Oaktree – Howard Marks memo: Uncertainty (May 2020)",
+     "u": "https://www.oaktreecapital.com/docs/default-source/memos/uncertainty.pdf"
+    }
+   ]
+  }
  ]
 }

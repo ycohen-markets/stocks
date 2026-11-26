@@ -177,6 +177,7 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
     <button id="dowBtn">📊 דאו</button>
     <button id="moodBtn">🌡️ <span id="moodLbl">מצב השוק</span></button>
     <button id="newsBtn">📰 חדשות <span class="cnt hidden" id="newsCnt"></span></button>
+    <button id="insBtn">💡 תובנות</button>
     <button id="diaBtn">💎 היהלום <span class="cnt hidden" id="diaCnt"></span></button>
     <button id="riskBtn">🛡️ צמצום סיכונים</button>
     <button id="trendBtn">📈 מגמת עלייה</button>
@@ -268,11 +269,17 @@ button.pri{background:linear-gradient(90deg,#60a5fa,#a855f7);border:none;color:#
   <section id="news" class="hidden">
     <div class="panel">
       <div class="row" style="justify-content:space-between"><h2 style="margin:0">📰 חדשות – מה קרה ולמה</h2><button id="newsBack">→ חזרה</button></div>
-      <p class="hint">כאן מופיע הסבר של Claude על מה שקרה בשווקים, למה, ואיך זה יכול להשפיע על המניות שלך – עם קישורים למקורות. ההסבר מתעדכן פעם ביום, אחרי סגירת המסחר בארצות הברית. כשיש חדשה דרמטית, היא נפתחת לבד כשפותחים את האפליקציה.</p>
+      <p class="hint">כאן רק החדשות: מה קרה בשווקים ולמה, ומה זה עשה למניות שלך – עם קישורים למקורות. מה קרה בעבר ומה אפשר ללמוד מזה – בחלונית 💡 תובנות. ההסבר מתעדכן פעם ביום, אחרי סגירת המסחר בארצות הברית. כשיש חדשה דרמטית, היא נפתחת לבד כשפותחים את האפליקציה.</p>
       <div id="newsMoves"></div>
     </div>
-    <div id="newsHist"></div>
     <div id="newsList"></div>
+  </section>
+  <section id="insights" class="hidden">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">💡 תובנות – מה למדנו</h2><button id="insBack">→ חזרה</button></div>
+      <p class="hint">החדשות שהיו, בקצרה, ומה למדנו מהן. ואחר כך: תובנות מההיסטוריה, מה אמרו משקיעים גדולים, והימים החדים של העבר ומה קרה אחריהם.</p>
+    </div>
+    <div id="insBody"></div>
   </section>
   <section id="gann" class="hidden">
     <div class="panel">
@@ -1968,8 +1975,8 @@ $('askCancel').onclick=()=>history.back();
 
 /* ---------- detail ---------- */
 let cur=null, range='90', chart=null, series=[];
-const VIEWS=['trend','risk','gann','dow','diamond','news','alerts','mood'];
-const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), news:()=>renderNews(), alerts:()=>renderAlertsView(), mood:()=>renderMood()};
+const VIEWS=['trend','risk','gann','dow','diamond','news','insights','alerts','mood'];
+const RENDER={trend:()=>renderTrend(), risk:()=>renderRisk(), gann:()=>renderGann(), dow:()=>renderDow(), diamond:()=>renderDiamond(), news:()=>renderNews(), insights:()=>renderInsights(), alerts:()=>renderAlertsView(), mood:()=>renderMood()};
 let pendingView=null;
 function openView(v){
   if(!$('noteModal').classList.contains('hidden')||!$('askModal').classList.contains('hidden')) return;
@@ -2002,9 +2009,10 @@ $('gannBtn').onclick=()=>openView('gann');
 $('dowBtn').onclick=()=>openView('dow');
 $('diaBtn').onclick=()=>openView('diamond');
 $('newsBtn').onclick=()=>openView('news');
+$('insBtn').onclick=()=>openView('insights');
 $('moodBtn').onclick=()=>openView('mood');
 $('alertBtn').onclick=()=>openView('alerts');
-['moodBack','riskBack','trendBack','gannBack','dowBack','diaBack','newsBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
+['moodBack','riskBack','trendBack','gannBack','dowBack','diaBack','newsBack','insBack','alertsBack'].forEach(id=>$(id).onclick=()=>history.back());
 $('backBtn').onclick=()=>history.back();
 /* phone back button: close the top layer instead of leaving the app */
 window.addEventListener('popstate',()=>{
@@ -2180,6 +2188,7 @@ async function loadNews(){
   const seen=new Set(seenNews()), fresh=(NEWS.items||[]).filter(x=>x.level==='big'&&!seen.has(x.id));
   if(fresh.length&&$('settings').classList.contains('hidden')&&$('setup').classList.contains('hidden')) openNewsModal(fresh);
   if(!$('news').classList.contains('hidden')) renderNews();
+  if(!$('insights').classList.contains('hidden')) renderInsights();
 }
 function updateNewsBtn(){
   const seen=new Set(seenNews()), n=((NEWS&&NEWS.items)||[]).filter(x=>!seen.has(x.id)).length;
@@ -2193,8 +2202,7 @@ function newsItemHtml(x,open){
     <h4>${esc(x.title)}</h4>
     <p>${esc(x.what||'')}</p>
     ${open?`${(x.why||[]).length?`<div class="lab">למה זה קרה</div><ul>${x.why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
-    ${x.past?`<div class="lab">📜 מה קרה בעבר אחרי יום כזה</div><p style="border-right:3px solid #a78bfa;padding-right:8px">${esc(x.past)}</p>`:''}
-    ${x.impact?`<div class="lab">איך זה יכול להשפיע</div><p>${esc(x.impact)}</p>`:''}
+    ${x.past||x.impact?`<p class="hint">💡 מה קרה בעבר אחרי יום כזה, ואיך זה יכול להשפיע – בחלונית התובנות.</p>`:''}
     ${mine.length?`<div class="lab">המניות שלך</div><ul>${mine.map(a=>`<li><b>${esc(nm(a.sym))}</b> – ${esc(a.note)}</li>`).join('')}</ul>`:''}
     ${x.unsure?`<p class="hint">❓ ${esc(x.unsure)}</p>`:''}
     ${(x.sources||[]).length?`<div class="lab">מקורות</div><div class="src">${x.sources.map(c=>`<div><a href="${esc(c.u)}" target="_blank" rel="noopener">${esc(c.t)}</a></div>`).join('')}</div>`:''}`
@@ -2225,10 +2233,23 @@ function renderNews(){
   const mv=unusualMoves();
   $('newsMoves').innerHTML=`<h4>⚡ תנועות חריגות שהאפליקציה רואה עכשיו</h4>`+(mv.length?mv.map(({s,i,q,r})=>{ const L=look(s.sym,i); return `<div class="leg" data-sym="${esc(s.sym)}">${L.i} <b>${esc(s.name)}</b> <b dir="ltr" class="${q.pct>=0?'up':'down'}">${pct(q.pct)}</b> · עכשיו <b dir="ltr">${fmt(q.price)}</b>${r?` · <span style="color:${r>=3?'#ef4444':'#f59e0b'}">פי ${r.toFixed(1)} מהרגיל</span>`:''}</div>`; }).join(''):'<p class="hint">אין כרגע תנועות חריגות במחירים.</p>');
   $('newsMoves').querySelectorAll('[data-sym]').forEach(el=>el.onclick=()=>openDetail(el.dataset.sym));
-  renderHistory();
   const items=((NEWS&&NEWS.items)||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   $('newsList').innerHTML=items.length?`<div class="panel">${NEWS.updated?`<p class="hint">עודכן: ${esc(NEWS.updated)}</p>`:''}${items.map(x=>newsItemHtml(x,true)).join('')}</div>`:'<div class="panel"><p class="hint">עוד אין חדשות. העדכון הראשון יגיע אחרי סגירת המסחר הבאה.</p></div>';
   markSeen(items.map(x=>x.id)); updateNewsBtn();
+}
+const insNums=t=>esc(t).replace(/([+-])(\d[\d.,]*%)/g,(m,sg,n)=>`<b dir="ltr" class="${sg==='+'?'up':'down'}">${sg}${n}</b>`);
+const insSrc=a=>(a||[]).length?`<div class="src">${a.map(c=>`<a href="${esc(c.u)}" target="_blank" rel="noopener">${esc(c.t)}</a>`).join(' · ')}</div>`:'';
+function renderInsights(){
+  const N=NEWS||{}, H=N.history||[], hid=new Map(H.map(h=>[h.id,h]));
+  const d=x=>{ const [y,m,dd]=(x.date||'').split('-'); return dd?`${dd}/${m}`:esc(x.date||''); };
+  const items=(N.items||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const brief=items.length?`<div class="panel"><h3 style="margin:0 0 6px">📅 החדשות שהיו – בקצרה</h3>${items.map(x=>{ const h=hid.get(x.id), dir=h?h.dir:'';
+    return `<div class="hrow ${dir==='up'?'hup':dir==='down'?'hdown':''}"><div class="hd">${d(x)}${x.level==='big'?' · ⚠️ דרמטי':''}</div><b class="t">${esc(h?h.title:x.title)}</b>${h&&h.move?`<div>📊 ${insNums(h.move)}</div>`:''}${x.past?`<div>💡 ${insNums(x.past)}</div>`:''}</div>`; }).join('')}</div>`:'';
+  const ins=(N.insights||[]).length?`<div class="panel"><h3 style="margin:0 0 6px">🧠 תובנות מההיסטוריה ומהלחץ של אנשים</h3>${N.insights.map(x=>`<div class="hrow" style="border-right-color:#a78bfa"><b class="t">${esc(x.t)}</b><div>${insNums(x.d)}</div>${insSrc(x.src)}</div>`).join('')}</div>`:'';
+  const gur=(N.gurus||[]).length?`<div class="panel"><h3 style="margin:0 0 6px">🎩 מה אמרו משקיעים גדולים</h3>${N.gurus.map(x=>`<div class="hrow" style="border-right-color:#f59e0b"><div class="hd">${esc(x.who)}${x.when?' · '+esc(x.when):''}</div><b class="t">"${esc(x.q)}"</b><div>${insNums(x.d)}</div>${insSrc(x.src)}</div>`).join('')}</div>`:'';
+  $('insBody').innerHTML=brief+ins+gur+'<div id="newsHist"></div>';
+  renderHistory();
+  if(!N.items) $('insBody').innerHTML='<div class="panel"><p class="hint">טוען…</p></div>';
 }
 function renderHistory(){
   // big up/down days kept for good (never deleted), so later news can compare with what happened before
@@ -2244,7 +2265,6 @@ function renderHistory(){
   $('newsHist').innerHTML=`<div class="panel"><h3 style="margin:0 0 6px">📜 היסטוריה שהשפיעה</h3>
     <p class="hint">תקציר של ימים עם עליות או נפילות חדות – ומה קרה אחריהם. הימים האלה נשמרים, וכל עדכון חדשות חדש משווה אליהם.</p>
     ${NEWS.historyNote?`<p class="hint">📏 ${esc(NEWS.historyNote)}</p>`:''}${NEWS.historyLesson?`<p style="line-height:1.6">💡 ${esc(NEWS.historyLesson)}</p>`:''}
-    ${(NEWS.insights||[]).length?`<div class="hsep">💡 תובנות מההיסטוריה ומהלחץ של אנשים</div>${NEWS.insights.map(x=>`<div class="hrow" style="border-right-color:#a78bfa"><b class="t">${esc(x.t)}</b><div>${nums(x.d)}</div>${(x.src||[]).length?`<div class="src">${x.src.map(c=>`<a href="${esc(c.u)}" target="_blank" rel="noopener">${esc(c.t)}</a>`).join(' · ')}</div>`:''}</div>`).join('')}`:''}
     ${recent.length?`<div class="hsep">לאחרונה</div>${recent.map(row).join('')}`:''}
     ${rec.length?`<div class="hsep">השיאים של השנים האחרונות</div>${rec.map(row).join('')}`:''}</div>`;
 }
